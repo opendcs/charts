@@ -1,0 +1,13 @@
+{{- if .Values.lrgs.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lrgs-configmap
+  labels:
+    {{- include "opendcs.labels" $ | nindent 4 }}
+data:
+  lrgs.conf: |
+    {{- range $key, $val := .Values.lrgs.conf -}}
+      {{ printf "%s: %v" $key $val | nindent 4 }}
+    {{- end -}}
+{{- end -}}

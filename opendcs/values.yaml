@@ -28,9 +28,23 @@ serviceAccount:
 podAnnotations: {}
 podLabels: {}
 
-apps:
-  lrgs:
+lrgs:
     enabled: true
+    storageClass: ""
+    storageSize: 30Gi
+    replicas: 1
+    conf:
+      archiveDir: "$LRGSHOME/archive"
+      numDayFiles: 31
+      enableDdsRecv: true
+      ddsRecvConfig: "$LRGSHOME/ddsrecv.conf"
+      enableDrgsRecv: false
+      drgsRecvConfig: "$LRGSHOME/drgsconf.xml"
+      htmlStatusSeconds: 10
+      ddsListenPort: 16003
+      ddsRequireAuth: false
+
+apps:
   routingscheduler:
     enabled: true
   compdepends:
