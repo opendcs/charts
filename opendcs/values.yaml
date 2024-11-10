@@ -33,7 +33,8 @@ lrgs:
     storageClass: ""
     storageSize: 30Gi
     replicas: 1
-    conf:
+    configMap: ""
+    conf:      
       archiveDir: "$LRGSHOME/archive"
       numDayFiles: 31
       enableDdsRecv: true
@@ -43,6 +44,8 @@ lrgs:
       htmlStatusSeconds: 10
       ddsListenPort: 16003
       ddsRequireAuth: false
+      # this prevents the LRGS from failing to respond if no data is available
+      noTimeout: true
 
 apps:
   routingscheduler:

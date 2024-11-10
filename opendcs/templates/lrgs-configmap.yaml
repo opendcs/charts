@@ -1,4 +1,4 @@
-{{- if .Values.lrgs.enabled -}}
+{{- if and .Values.lrgs.enabled (empty .Values.lrgs.configMap) -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:

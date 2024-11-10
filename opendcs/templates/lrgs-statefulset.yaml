@@ -34,30 +34,42 @@ spec:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
       terminationGracePeriodSeconds: 10
       containers:
-      - name: lrgs
-        image: {{ $.Values.image.repository }}/lrgs:{{ $.Values.image.tag | default $.Chart.AppVersion }}
-        imagePullPolicy: {{ $.Values.image.pullPolicy }}
-        ports:
-          - containerPort: 16003
-            name: dds
-        livenessProbe:
-            {{- toYaml $.Values.livenessProbe | nindent 12 }}
-        readinessProbe:
-          {{- toYaml $.Values.readinessProbe | nindent 12 }}
-        resources:
-          {{- toYaml $.Values.resources | nindent 12 }}
-        volumeMounts:
-          - name: archive
-            mountPath: /lrgs_home/archive
-          - name: lrgs-config-map
-            mountPath: /lrgs_home/
-        env:
-          - name: LRGSHOME
-            value: "/lrgs_home"
+        - name: lrgs
+          image: {{ $.Values.image.repository }}/lrgs:{{ $.Values.image.tag | default $.Chart.AppVersion }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          ports:
+            - containerPort: 16003
+              name: dds
+          livenessProbe:
+              {{- toYaml $.Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $.Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: archive
+              mountPath: /lrgs_home/archive
+            - name: lrgs-config-map
+              mountPath: /lrgs_home/
+          env:
+            - name: LRGSHOME
+              value: "/lrgs_home"
     volumes:
         - name: example-config
           configMap:
             name: lrgs-configmap
+    {{- with $.Values.nodeSelector }}
+    nodeSelector:
+      {{- toYaml $ | nindent 8 }}
+    {{- end }}
+    {{- with $.Values.affinity }}
+    affinity:
+      {{- toYaml $ | nindent 8 }}
+    {{- end }}
+    {{- with $.Values.tolerations }}
+    tolerations:
+      {{- toYaml $ | nindent 8 }}
+    {{- end }}
   volumeClaimTemplates:
   - metadata:
       name: archive
