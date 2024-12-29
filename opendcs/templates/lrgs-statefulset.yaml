@@ -37,6 +37,7 @@ spec:
         - name: lrgs
           image: {{ $.Values.image.repository }}/lrgs:{{ $.Values.image.tag | default $.Chart.AppVersion }}
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["/bin/bash","/config/lrgs.sh"]
           ports:
             - containerPort: 16003
               name: dds
@@ -47,15 +48,15 @@ spec:
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
           volumeMounts:
-            - name: archive
-              mountPath: /lrgs_home/archive
             - name: lrgs-config-map
-              mountPath: /lrgs_home/
+              mountPath: /config
+            - name: archive
+              mountPath: /lrgs_home2
           env:
             - name: LRGSHOME
-              value: "/lrgs_home"
-    volumes:
-        - name: example-config
+              value: /lrgs_home2
+      volumes:
+        - name: lrgs-config-map
           configMap:
             name: lrgs-configmap
     {{- with $.Values.nodeSelector }}
@@ -75,7 +76,9 @@ spec:
       name: archive
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: {{ default .Values.lrgs.storageClass "" | quote }}
+      {{- if $.Values.lrgs.storageClass }}
+      storageClassName: {{ .Values.lrgs.storageClass | quote }}
+      {{- end }}
       resources:
         requests:
           storage: {{ .Values.lrgs.storageSize }}
