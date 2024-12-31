@@ -37,7 +37,7 @@ spec:
         - name: lrgs
           image: {{ $.Values.image.repository }}/lrgs:{{ $.Values.image.tag | default $.Chart.AppVersion }}
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-          command: ["/bin/bash","/config/lrgs.sh"]
+          command: ["/bin/bash","/config/lrgs.sh","-f", "/config/lrgs.conf"]
           ports:
             - containerPort: 16003
               name: dds
