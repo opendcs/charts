@@ -1,0 +1,85 @@
+{{- if .Values.lrgs.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "opendcs.fullname" .  }}-lrgs
+  labels:
+    {{- include "opendcs.labels" $ | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "opendcs.fullname" $  }}-lrgs # has to match .spec.template.metadata.labels
+  serviceName: "lrgs"
+  replicas: {{ .Values.lrgs.replicas }} # by default is 1
+  minReadySeconds: 10 # by default is 0
+  template:
+    metadata:
+      {{- with $.Values.podAnnotations }}
+        annotations:
+        {{- toYaml $ | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "opendcs.fullname" $  }}-lrgs # has to match .spec.template.metadata.labels
+        {{- include "opendcs.labels" $ | nindent 8 }}
+        {{- with $.Values.podLabels }}
+        {{- toYaml $ | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml $ | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "opendcs.serviceAccountName" $ }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: lrgs
+          image: {{ $.Values.image.repository }}/lrgs:{{ $.Values.image.tag | default $.Chart.AppVersion }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          command: ["/bin/bash","/config/lrgs.sh","-f", "/config/lrgs.conf"]
+          ports:
+            - containerPort: 16003
+              name: dds
+          livenessProbe:
+              {{- toYaml $.Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $.Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: lrgs-config-map
+              mountPath: /config
+            - name: archive
+              mountPath: /lrgs_home2
+          env:
+            - name: LRGSHOME
+              value: /lrgs_home2
+      volumes:
+        - name: lrgs-config-map
+          configMap:
+            name: lrgs-configmap
+    {{- with $.Values.nodeSelector }}
+    nodeSelector:
+      {{- toYaml $ | nindent 8 }}
+    {{- end }}
+    {{- with $.Values.affinity }}
+    affinity:
+      {{- toYaml $ | nindent 8 }}
+    {{- end }}
+    {{- with $.Values.tolerations }}
+    tolerations:
+      {{- toYaml $ | nindent 8 }}
+    {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: archive
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if $.Values.lrgs.storageClass }}
+      storageClassName: {{ .Values.lrgs.storageClass | quote }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.lrgs.storageSize }}
+{{- end -}}

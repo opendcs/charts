@@ -28,11 +28,28 @@ serviceAccount:
 podAnnotations: {}
 podLabels: {}
 
+lrgs:
+    enabled: true
+    storageClass:
+    storageSize: 30Gi
+    replicas: 1
+    configMap: ""
+    conf:
+      archiveDir: "$LRGSHOME/archive"
+      numDayFiles: 31
+      enableDdsRecv: true
+      ddsRecvConfig: "/config/ddsrecv.conf"
+      enableDrgsRecv: false
+      drgsRecvConfig: "/config/drgsconf.xml"
+      htmlStatusSeconds: 10
+      ddsListenPort: 16003
+      ddsRequireAuth: false
+      # this prevents the LRGS from failing to respond if no data is available
+      noTimeout: true
+
 apps:
-  lrgs:
-    enabled: true
   routingscheduler:
-    enabled: true
+    enabled: false
   compdepends:
     enabled: false
   compproc:
@@ -51,7 +68,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 16003
 
 ingress:
   enabled: false
@@ -82,13 +99,15 @@ resources: {}
   #   memory: 128Mi
 
 livenessProbe:
-  httpGet:
-    path: /
-    port: http
+  tcpSocket:
+     port: 16003
+  initialDelaySeconds: 15
+  periodSeconds: 10
 readinessProbe:
-  httpGet:
-    path: /
-    port: http
+  tcpSocket:
+    port: 16003
+  initialDelaySeconds: 15
+  periodSeconds: 10
 
 autoscaling:
   enabled: false
