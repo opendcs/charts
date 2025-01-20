@@ -47,9 +47,20 @@ lrgs:
       # this prevents the LRGS from failing to respond if no data is available
       noTimeout: true
 
+postgresql:
+  enabled: true
+  auth:
+    database: dcs
+    username: dcs_owner
+    password: "newUserPassword123"
+    postgresPassword: "newPostgresPassword123"
+
+  passwordUpdateJob:
+    enabled: true
+
 apps:
   routingscheduler:
-    enabled: false
+    enabled: true
   compdepends:
     enabled: false
   compproc:

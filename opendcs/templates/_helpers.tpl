@@ -60,3 +60,23 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Return the name for the database to use
+*/}}
+{{- define "database.name" -}}
+  {{- if .Values.postgresql.enabled }}
+    {{- printf "%s" (include "postgresql.database" .Subcharts.postgresql) -}}
+  {{- else -}}
+    {{- printf "%s" (tpl .Values.externalDatabase.database $) -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Return the hostname of the database to use
+*/}}
+{{- define "database.hostname" -}}
+  {{- if .Values.postgresql.enabled -}}
+    {{- printf "%s" (include "postgresql.v1.primary.fullname" .Subcharts.postgresql) -}}
+  {{- end -}}
+{{- end -}}

@@ -31,15 +31,22 @@ spec:
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ $.Chart.Name }}-{{ $appName }}
+        - name: {{ $appName }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
           image: "{{ $.Values.image.repository }}/{{$appName}}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ $.Values.service.port }}
-              protocol: TCP
+          env:
+            - name: DATABASE_TYPE
+              value: "OPENTSDB"
+            - name: DATABASE_URL
+              value: "jdbc:postgresql://{{ include "database.hostname" $}}:5432/{{ $.Values.postgresql.auth.database }}"
+            - name: DATABASE_DRIVER
+              value: "org.postgresql.Driver"
+            - name: DATABASE_USERNAME
+              value: {{ $.Values.postgresql.auth.username }}
+            - name: DATABASE_PASSWORD
+              value: {{ $.Values.postgresql.auth.password }}
           livenessProbe:
             {{- toYaml $.Values.livenessProbe | nindent 12 }}
           readinessProbe:
