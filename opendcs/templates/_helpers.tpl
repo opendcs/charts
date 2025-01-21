@@ -66,9 +66,9 @@ Return the name for the database to use
 */}}
 {{- define "database.name" -}}
   {{- if .Values.postgresql.enabled }}
-    {{- printf "%s" (include "postgresql.database" .Subcharts.postgresql) -}}
+    {{- printf "%s" (include "postgresql.v1.database" .Subcharts.postgresql) -}}
   {{- else -}}
-    {{- printf "%s" (tpl .Values.externalDatabase.database $) -}}
+    {{- printf "%s" (tpl .Values.externalDatabase.database .) -}}
   {{- end -}}
 {{- end -}}
 
@@ -78,5 +78,45 @@ Return the hostname of the database to use
 {{- define "database.hostname" -}}
   {{- if .Values.postgresql.enabled -}}
     {{- printf "%s" (include "postgresql.v1.primary.fullname" .Subcharts.postgresql) -}}
+  {{- else -}}
+    {{- printf "%s" (tpl .Values.externalDatabase.hostname $) -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Get the user-password key for the database password
+*/}}
+{{- define "database.passwordKey" -}}
+  {{- if .Values.postgresql.enabled -}}
+    {{- printf "%s" (include "postgresql.v1.userPasswordKey" .Subcharts.postgresql) -}}
+  {{- else if .Values.externalDatabase.userPasswordKey -}}
+    {{- printf "%s" (tpl .Values.externalDatabase.userPasswordKey $) -}}
+  {{- else -}}
+    {{- "password" -}}
+  {{- end -}}
+{{- end -}}
+
+
+{{/*
+Get the name of the secret containing the database password .
+*/}}
+{{- define "database.secretName" -}}
+  {{- if .Values.postgresql.enabled -}}
+    {{- printf "%s" (include "postgresql.v1.secretName" .Subcharts.postgresql) -}}
+  {{- else if .Values.externalDatabase.existingSecret }}
+    {{- printf "%s" (tpl .Values.externalDatabase.existingSecret $) -}}
+  {{- else -}}
+    {{- printf "%s" (include "mychart.fullname" .) -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Return the name for the user to use
+*/}}
+{{- define "database.username" -}}
+  {{- if .Values.postgresql.enabled -}}
+    {{- printf "%s" (include "postgresql.v1.username" .Subcharts.postgresql) -}}
+  {{- else -}}
+    {{- printf "%s" (tpl .Values.externalDatabase.username $) -}}
   {{- end -}}
 {{- end -}}
