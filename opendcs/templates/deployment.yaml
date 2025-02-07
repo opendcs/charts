@@ -23,6 +23,13 @@ spec:
         {{- toYaml $ | nindent 8 }}
         {{- end }}
     spec:
+      initContainers:
+        - name: wait-for-migration
+          image: ghcr.io/groundnuty/k8s-wait-for:v1.6
+          imagePullPolicy: Always
+          args:
+            - "job"
+            - "database-migration"
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml $ | nindent 8 }}
@@ -37,6 +44,8 @@ spec:
           image: "{{ $.Values.image.repository }}/{{$appName}}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           env:
+            - name: KEYGENERATOR
+              value: "decodes.sql.SequenceKeyGenerator"
             - name: DATABASE_TYPE
               value: "OPENTSDB"
             - name: DATABASE_URL
@@ -44,12 +53,9 @@ spec:
             - name: DATABASE_DRIVER
               value: "org.postgresql.Driver"
             - name: DATABASE_USERNAME
-              value: {{ include "database.username" $ | quote }}
+              value: {{ $.Values.apps.user.username }}
             - name: DATABASE_PASSWORD
-              valueFrom: 
-                secretKeyRef:
-                  name: {{ include "database.secretName" $ | quote }}
-                  key: {{ include "database.passwordKey" $ | quote }}
+              value: {{ $.Values.apps.user.password }}
           livenessProbe:
             {{- toYaml $.Values.livenessProbe | nindent 12 }}
           readinessProbe:
