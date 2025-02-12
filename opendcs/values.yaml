@@ -13,6 +13,7 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+namespace: default
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -47,13 +48,39 @@ lrgs:
       # this prevents the LRGS from failing to respond if no data is available
       noTimeout: true
 
+postgresql:
+  enabled: true
+  auth:
+    database: dcs
+    username: dcs_owner
+    password: "newUserPassword123"
+    postgresPassword: "newPostgresPassword123"
+  primary:
+    extraEnvVars:
+      - name: BITNAMI_DEBUG
+        value: "1"
+    initdb:
+      user: postgres
+      password: "newPostgresPassword123"
+      scripts:
+        00_owner.sql: |
+          alter user dcs_owner createrole;
+
+  passwordUpdateJob:
+    enabled: true
+
 apps:
   routingscheduler:
-    enabled: false
+    enabled: true
+    name: routingscheduler
   compdepends:
     enabled: false
   compproc:
     enabled: false
+
+  user:
+    username: dcs_proc
+    password: dcs_proc
 
 podSecurityContext: {}
   # fsGroup: 2000

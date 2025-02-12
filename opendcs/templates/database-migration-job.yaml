@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-migration
+  labels:
+    {{- include "opendcs.labels" $ | nindent 4 }}
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: wait-for-database
+          image: ghcr.io/groundnuty/k8s-wait-for:v1.6
+          imagePullPolicy: Always
+          args:
+            - "service"
+            - "opendcs-postgresql"
+      serviceAccountName: {{ include "opendcs.serviceAccountName" $ }}
+      containers:
+        - name: database-migration
+          #image: "{{ .Values.image.repository }}/routingscheduler:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: git.hobbyscience.net/homelab/routingscheduler:main-20250205183900
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: KEYGENERATOR
+              value: "decodes.sql.SequenceKeyGenerator"
+            - name: DATABASE_TYPE
+              value: "OPENTSDB"
+            - name: DATABASE_URL
+              value: "jdbc:postgresql://{{ include "database.hostname" .}}:5432/{{ include "database.name" . }}"
+            - name: DATABASE_DRIVER
+              value: "org.postgresql.Driver"
+            - name: DATABASE_OWNER_USERNAME
+              value: {{ .Values.postgresql.auth.username }}
+            - name: DATABASE_OWNER_PASSWORD
+              value: {{ .Values.postgresql.auth.password }}
+            - name: DATABASE_USERNAME
+              value: {{ .Values.apps.user.username }}
+            - name: DATABASE_PASSWORD
+              value: {{ .Values.apps.user.password }}
+          volumeMounts:
+            - name: script-config-map
+              mountPath: /k8s
+          args: ["bash","/k8s/db_migration.sh"]
+      volumes:
+        - name: script-config-map
+          configMap:
+            name: {{ .Release.Name }}-scripts
+      restartPolicy: Never
+  backoffLimit: 4

@@ -23,6 +23,13 @@ spec:
         {{- toYaml $ | nindent 8 }}
         {{- end }}
     spec:
+      initContainers:
+        - name: wait-for-migration
+          image: ghcr.io/groundnuty/k8s-wait-for:v1.6
+          imagePullPolicy: Always
+          args:
+            - "job"
+            - "database-migration"
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml $ | nindent 8 }}
@@ -31,19 +38,28 @@ spec:
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ $.Chart.Name }}-{{ $appName }}
+        - name: {{ $appName }}
           securityContext:
             {{- toYaml $.Values.securityContext | nindent 12 }}
           image: "{{ $.Values.image.repository }}/{{$appName}}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ $.Values.service.port }}
-              protocol: TCP
-          livenessProbe:
-            {{- toYaml $.Values.livenessProbe | nindent 12 }}
-          readinessProbe:
-            {{- toYaml $.Values.readinessProbe | nindent 12 }}
+          env:
+            - name: KEYGENERATOR
+              value: "decodes.sql.SequenceKeyGenerator"
+            - name: DATABASE_TYPE
+              value: "OPENTSDB"
+            - name: DATABASE_URL
+              value: "jdbc:postgresql://{{ include "database.hostname" $}}:5432/{{ include "database.name" $ }}"
+            - name: DATABASE_DRIVER
+              value: "org.postgresql.Driver"
+            - name: DATABASE_USERNAME
+              value: {{ $.Values.apps.user.username }}
+            - name: DATABASE_PASSWORD
+              value: {{ $.Values.apps.user.password }}
+            {{ if $app.name -}}
+            - name: APPLICATION_NAME
+              value: "{{ $app.name }}"
+            {{ end }}
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
           {{- with $.Values.volumeMounts }}
