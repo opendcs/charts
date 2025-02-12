@@ -56,10 +56,10 @@ spec:
               value: {{ $.Values.apps.user.username }}
             - name: DATABASE_PASSWORD
               value: {{ $.Values.apps.user.password }}
-          livenessProbe:
-            {{- toYaml $.Values.livenessProbe | nindent 12 }}
-          readinessProbe:
-            {{- toYaml $.Values.readinessProbe | nindent 12 }}
+            {{ if $app.name -}}
+            - name: APPLICATION_NAME
+              value: "{{ $app.name }}"
+            {{ end }}
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
           {{- with $.Values.volumeMounts }}

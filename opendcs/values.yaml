@@ -56,7 +56,12 @@ postgresql:
     password: "newUserPassword123"
     postgresPassword: "newPostgresPassword123"
   primary:
+    extraEnvVars:
+      - name: BITNAMI_DEBUG
+        value: "1"
     initdb:
+      user: postgres
+      password: "newPostgresPassword123"
       scripts:
         00_owner.sql: |
           alter user dcs_owner createrole;
@@ -67,6 +72,7 @@ postgresql:
 apps:
   routingscheduler:
     enabled: true
+    name: routingscheduler
   compdepends:
     enabled: false
   compproc:
