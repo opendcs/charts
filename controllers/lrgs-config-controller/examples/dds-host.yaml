@@ -1,0 +1,19 @@
+apiVersion: lrgs.opendcs.org/v1
+kind: DdsRecv
+metadata:
+  name: local
+spec:
+  name: LocalTest
+  hostname: local-lrgs.test
+  username: testuser
+  password: testpassword
+---
+apiVersion: lrgs.opendcs.org/v1
+kind: DdsRecv
+metadata:
+  name: local2
+spec:
+  name: LocalTest2
+  hostname: local2-lrgs.test
+  username: testuser
+  password: testpassword

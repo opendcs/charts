@@ -22,23 +22,24 @@ impl Visitor for MyVisitor {
 #[schemars(schema_with="add_one_of")]
 pub struct DdsRecvSpec {
     #[garde(ascii, length(min=1))]
-    hostname: String,
+    pub name: String,
+    #[garde(ascii, length(min=1))]
+    pub hostname: String,
     #[serde(default = "port_default")]
     #[garde(range(min=1, max=65535))]
-    port: i32,
+    pub port: i32,
     #[garde(skip)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    enabled: Option<bool>,
+    pub enabled: Option<bool>,
     #[garde(skip)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    username: Option<String>,
+    pub username: Option<String>,
     #[garde(skip)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    password: Option<String>,
+    pub password: Option<String>,
     #[garde(skip)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(schema_with="add_one_of")]
-    secret: Option<String>
+    pub secret: Option<String>
 }
 
 #[allow(unused)]
