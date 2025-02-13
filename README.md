@@ -42,7 +42,7 @@ always used to handle changes.
 
 ### Interface
 
-Currently the DDS protocol will need to be exposed raw, there is work on a web app that will be integrated as soon as possible.
+Currently the DDS protocol will need to be exposed raw, there is work on a web app and api that will be integrated as soon as possible.
 
 ## Database
 
