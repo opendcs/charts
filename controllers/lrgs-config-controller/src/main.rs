@@ -1,4 +1,4 @@
-use api::v1::dds_recv::DdsRecv;
+use api::v1::dds_recv::DdsConnection;
 //use futures::{StreamExt, TryStreamExt};
 use kube::{Client, api::{Api, ListParams }};//, PostParams}};
 use std::fs::File;
@@ -32,10 +32,10 @@ async fn create_ddsrecv_conf(client: Client, file: &File) -> Result<(), Box<dyn 
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
     // Read pods in the configured namespace into the typed interface from k8s-openapi
-    let dds: Api<DdsRecv> = Api::default_namespaced(client);
+    let connections: Api<DdsConnection> = Api::default_namespaced(client);
     // NOTE: review error handling more. No connections is reasonable, need
     // to make sure this would always just be empty and figure out some other error conditions.
-    for host in dds.list(&ListParams::default()).await? {
+    for host in connections.list(&ListParams::default()).await? {
         println!("found dds {}", host.spec.hostname);
         let mut connection = XMLElement::new("connection");
         connection.add_attribute("number", i);

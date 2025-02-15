@@ -17,10 +17,10 @@ impl Visitor for MyVisitor {
 
 // Our custom resource
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema, Validate)]
-#[kube(group = "lrgs.opendcs.org", version = "v1", kind = "DdsRecv", namespaced)]
+#[kube(group = "lrgs.opendcs.org", version = "v1", kind = "DdsConnection", namespaced)]
 #[serde(rename_all = "camelCase")]
 #[schemars(schema_with="add_one_of")]
-pub struct DdsRecvSpec {
+pub struct DdsConnectionSpec {
     #[garde(ascii, length(min=1))]
     pub name: String,
     #[garde(ascii, length(min=1))]
