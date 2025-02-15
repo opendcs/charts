@@ -2,24 +2,32 @@ use api::v1::dds_recv::DdsRecv;
 //use futures::{StreamExt, TryStreamExt};
 use kube::{Client, api::{Api, ListParams }};//, PostParams}};
 use std::fs::File;
-use std::io::Result as WriteResult;
+use std::error::Error;
 use simple_xml_builder::XMLElement;
 
 
 mod api;
 
+use clap::Parser;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Infer the runtime environment and try to create a Kubernetes Client
-    let client = Client::try_default().await?;
-    let file = File::create("ddsrecv.conf")?;
-    let _ = create_ddsrecv_conf(client, &file).await?;
-    
-    Ok(())
+#[derive(Parser)]
+struct Cli {
+    /// The path to write output to
+    #[arg(short, long, default_value = "./")]
+    conf_dir: std::path::PathBuf,
 }
 
-async fn create_ddsrecv_conf(client: Client, file: &File) -> WriteResult<()> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let args = Cli::parse();
+    // Infer the runtime environment and try to create a Kubernetes Client
+    let client = Client::try_default().await?;
+    let file = File::create(args.conf_dir.join("ddsrecv.conf"))?;
+    let ret = create_ddsrecv_conf(client, &file).await;
+    Ok(ret?)
+}
+
+async fn create_ddsrecv_conf(client: Client, file: &File) -> Result<(), Box<dyn Error>> {
 
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
@@ -27,7 +35,7 @@ async fn create_ddsrecv_conf(client: Client, file: &File) -> WriteResult<()> {
     let dds: Api<DdsRecv> = Api::default_namespaced(client);
     // NOTE: review error handling more. No connections is reasonable, need
     // to make sure this would always just be empty and figure out some other error conditions.
-    for host in dds.list(&ListParams::default()).await.unwrap() {        
+    for host in dds.list(&ListParams::default()).await? {
         println!("found dds {}", host.spec.hostname);
         let mut connection = XMLElement::new("connection");
         connection.add_attribute("number", i);
@@ -62,5 +70,5 @@ async fn create_ddsrecv_conf(client: Client, file: &File) -> WriteResult<()> {
         i = i + 1;
     }
     print!("{}", ddsrecv_conf);
-    ddsrecv_conf.write(file)
+    Ok(ddsrecv_conf.write(file)?)
 }
