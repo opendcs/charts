@@ -31,15 +31,8 @@ pub struct DdsConnectionSpec {
     #[garde(skip)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
-    #[garde(skip)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub username: Option<String>,
-    #[garde(skip)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
-    #[garde(skip)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub secret: Option<String>
+    #[garde(ascii, length(min=1))]
+    pub username: String
 }
 
 #[allow(unused)]

@@ -1,10 +1,11 @@
 use api::v1::dds_recv::DdsConnection;
+use k8s_openapi::api::core::v1::Secret;
 //use futures::{StreamExt, TryStreamExt};
 use kube::{Client, api::{Api, ListParams }};//, PostParams}};
 use std::fs::File;
 use std::error::Error;
 use simple_xml_builder::XMLElement;
-
+use sha1::{Sha1, Digest};
 
 mod api;
 
@@ -22,17 +23,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let args = Cli::parse();
     // Infer the runtime environment and try to create a Kubernetes Client
     let client = Client::try_default().await?;
+
     let file = File::create(args.conf_dir.join("ddsrecv.conf"))?;
-    let ret = create_ddsrecv_conf(client, &file).await;
-    Ok(ret?)
+    create_ddsrecv_conf(&client, &file).await?;
+
+    let pw_file = File::create(args.conf_dir.join(".lrgs.passwd"))?;
+    create_password_file(&client, &pw_file).await?;
+
+    Ok(())
 }
 
-async fn create_ddsrecv_conf(client: Client, file: &File) -> Result<(), Box<dyn Error>> {
+async fn create_ddsrecv_conf(client: &Client, file: &File) -> Result<(), Box<dyn Error>> {
 
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
     // Read pods in the configured namespace into the typed interface from k8s-openapi
-    let connections: Api<DdsConnection> = Api::default_namespaced(client);
+    let connections: Api<DdsConnection> = Api::default_namespaced(client.clone());
     // NOTE: review error handling more. No connections is reasonable, need
     // to make sure this would always just be empty and figure out some other error conditions.
     for host in connections.list(&ListParams::default()).await? {
@@ -50,13 +56,8 @@ async fn create_ddsrecv_conf(client: Client, file: &File) -> Result<(), Box<dyn 
         name.add_text(host.spec.name);
         
         let mut username = XMLElement::new("username");
-        if host.spec.secret.is_some() {
-            // get from secret and setup password
-        } else {
-            username.add_text(host.spec.username.unwrap());
-            // also setup password
-        }
-
+        username.add_text(host.spec.username);
+    
         let mut authenticate = XMLElement::new("authenticate");
         authenticate.add_text("true");
 
@@ -71,4 +72,30 @@ async fn create_ddsrecv_conf(client: Client, file: &File) -> Result<(), Box<dyn 
     }
     print!("{}", ddsrecv_conf);
     Ok(ddsrecv_conf.write(file)?)
+}
+
+
+fn lrgs_password_hash(username: &str, password: &str) -> String {
+    let mut hasher = Sha1::new();
+    hasher.update(username);
+    hasher.update(password);
+    hasher.update(username);
+    hasher.update(password);
+    let hash = hasher.finalize();
+    base16ct::upper::encode_string(&hash)
+}
+
+async fn create_password_file(client: &Client, _file: &File) -> Result<(), Box<dyn Error>> {
+    let users: Api<Secret> = Api::default_namespaced(client.clone());
+    let params = ListParams::default().fields("type=lrgs.opendcs.org/ddsuser");
+    for user in users.list(&params).await? {
+        let data = user.data;
+        if data.is_some() {
+            let data = data.unwrap();
+            let username = String::from_utf8(data.get("username").unwrap().0.clone())?;
+            let password = String::from_utf8(data.get("password").unwrap().0.clone())?;
+            println!("{} -> {}", &username, lrgs_password_hash(&username, &password));
+        }
+    }
+    Ok(())
 }
