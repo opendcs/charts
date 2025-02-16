@@ -6,7 +6,6 @@ spec:
   name: LocalTest
   hostname: local-lrgs.test
   username: testuser
-  password: testpassword
 ---
 apiVersion: lrgs.opendcs.org/v1
 kind: DdsConnection
@@ -15,4 +14,15 @@ metadata:
 spec:
   name: LocalTest2
   hostname: local2-lrgs.test
-  secret: local2-creds
+  username: testuser
+---
+apiVersion: v1
+kind: Secret
+type: lrgs.opendcs.org/ddsuser
+metadata:
+  name: testuser
+stringData:
+  username: testuser
+  password: test
+  roles: ""
+---
