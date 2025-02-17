@@ -27,15 +27,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = Client::try_default().await?;
 
     let file = File::create(args.conf_dir.join("ddsrecv.conf"))?;
-    create_ddsrecv_conf(&client, file).await?;
+    create_ddsrecv_conf(client.clone(), file).await?;
 
     let pw_file = File::create(args.conf_dir.join(".lrgs.passwd"))?;
-    create_password_file(&client, pw_file).await?;
+    create_password_file(client.clone(), pw_file).await?;
 
     Ok(())
 }
 
-async fn create_ddsrecv_conf(client: &Client, file: File) -> Result<(), Box<dyn Error>> {
+async fn create_ddsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn Error>> {
 
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
@@ -79,7 +79,7 @@ async fn create_ddsrecv_conf(client: &Client, file: File) -> Result<(), Box<dyn 
 
 
 
-async fn create_password_file(client: &Client, file: File) -> Result<(), Box<dyn Error>> {
+async fn create_password_file(client: Client, file: File) -> Result<(), Box<dyn Error>> {
     let users: Api<Secret> = Api::default_namespaced(client.clone());
     let params = ListParams::default().fields("type=lrgs.opendcs.org/ddsuser");
     let mut pw_file = password_file::PasswordFile::new(file);
