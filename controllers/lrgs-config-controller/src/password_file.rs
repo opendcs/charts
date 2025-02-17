@@ -1,28 +1,28 @@
+use sha1::{Digest, Sha1};
 use std::{fs::File, io::Write};
-use sha1::{Sha1, Digest};
 
 pub struct DdsUser {
     pub username: String,
     pub password: String,
-    pub roles: Vec<String>
+    pub roles: Vec<String>,
 }
 
 impl std::fmt::Display for DdsUser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f,"({},{},{:?})", self.username, "*********", &self.roles)
+        write!(f, "({},{},{:?})", self.username, "*********", &self.roles)
     }
 }
 
 pub struct PasswordFile {
     file: File,
-    users: Vec<DdsUser>
+    users: Vec<DdsUser>,
 }
 
 impl PasswordFile {
     pub fn new(file: File) -> PasswordFile {
         PasswordFile {
             file,
-            users: vec![]
+            users: vec![],
         }
     }
 
@@ -35,7 +35,7 @@ impl PasswordFile {
         for user in self.users.as_slice() {
             let pw_hash = lrgs_password_hash(&user.username, &user.password);
             let roles = if user.roles.is_empty() {
-              String::from("none"  )
+                String::from("none")
             } else {
                 user.roles.join(",")
             };
@@ -53,7 +53,7 @@ impl std::fmt::Display for PasswordFile {
             write!(f, "{user},")?;
         }
         write!(f, "])")
-    }    
+    }
 }
 
 // to anyone thinking this isn't anywhere near sufficient,
