@@ -1,12 +1,14 @@
 use api::v1::dds_recv::DdsConnection;
 use k8s_openapi::api::core::v1::Secret;
 //use futures::{StreamExt, TryStreamExt};
-use kube::{Client, api::{Api, ListParams }};
+use kube::{
+    api::{Api, ListParams},
+    Client,
+};
 //, PostParams}};
-use std::fs::File;
-use std::error::Error;
 use simple_xml_builder::XMLElement;
-
+use std::error::Error;
+use std::fs::File;
 
 mod api;
 mod password_file;
@@ -36,7 +38,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn create_ddsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn Error>> {
-
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
     // Read pods in the configured namespace into the typed interface from k8s-openapi
@@ -50,16 +51,16 @@ async fn create_ddsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn E
         connection.add_attribute("host", host.spec.hostname);
         let mut enabled = XMLElement::new("enabled");
         enabled.add_text(host.spec.enabled.unwrap_or(true).to_string());
-        
+
         let mut port = XMLElement::new("port");
         port.add_text(host.spec.port);
 
         let mut name = XMLElement::new("name");
         name.add_text(host.spec.name);
-        
+
         let mut username = XMLElement::new("username");
         username.add_text(host.spec.username);
-    
+
         let mut authenticate = XMLElement::new("authenticate");
         authenticate.add_text("true");
 
@@ -68,16 +69,12 @@ async fn create_ddsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn E
         connection.add_child(username);
         connection.add_child(authenticate);
 
-
         ddsrecv_conf.add_child(connection);
         i = i + 1;
     }
     print!("{}", ddsrecv_conf);
     Ok(ddsrecv_conf.write(file)?)
 }
-
-
-
 
 async fn create_password_file(client: Client, file: File) -> Result<(), Box<dyn Error>> {
     let users: Api<Secret> = Api::default_namespaced(client.clone());
@@ -92,15 +89,15 @@ async fn create_password_file(client: Client, file: File) -> Result<(), Box<dyn 
             let roles = data.get("roles");
             let roles = match roles {
                 Some(_) => String::from_utf8(roles.unwrap().0.clone())?
-                               .split(",")
-                               .map(|i| String::from(i))
-                               .collect(), 
-                None => vec![]
+                    .split(",")
+                    .map(|i| String::from(i))
+                    .collect(),
+                None => vec![],
             };
             pw_file.add_user(password_file::DdsUser {
                 username,
                 password,
-                roles
+                roles,
             });
         }
     }

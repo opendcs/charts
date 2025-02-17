@@ -5,6 +5,9 @@ mod api;
 
 fn main() {
     println!("---");
-    print!("{}", serde_yaml::to_string(&v1::dds_recv::DdsConnection::crd()).unwrap());
+    print!(
+        "{}",
+        serde_yaml::to_string(&v1::dds_recv::DdsConnection::crd()).unwrap()
+    );
     println!("---");
 }
