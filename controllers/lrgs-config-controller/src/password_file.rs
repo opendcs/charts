@@ -34,8 +34,12 @@ impl PasswordFile {
         let mut f = &self.file;
         for user in self.users.as_slice() {
             let pw_hash = lrgs_password_hash(&user.username, &user.password);
-            let roles = user.roles.join(",");
-            f.write_fmt(format_args!("{}:{roles}:{pw_hash}:", &user.username))?;
+            let roles = if user.roles.is_empty() {
+              String::from("none"  )
+            } else {
+                user.roles.join(",")
+            };
+            f.write_fmt(format_args!("{}:{roles}:{pw_hash}:\n", &user.username))?;
         }
         Ok(())
     }

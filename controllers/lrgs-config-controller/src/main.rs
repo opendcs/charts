@@ -104,6 +104,5 @@ async fn create_password_file(client: &Client, file: File) -> Result<(), Box<dyn
             });
         }
     }
-    println!("Password file {pw_file}");
     Ok(pw_file.write_file()?)
 }
