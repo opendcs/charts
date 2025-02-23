@@ -10,11 +10,38 @@ use kube::{
 use simple_xml_builder::XMLElement;
 //, PostParams}};
 
-use std::error::Error;
+use std::{error::Error, vec};
 use std::fs::File;
 
 use super::password_file;
 
+fn add_connection(conf: &mut XMLElement, i: i32, name: &str, hostname: &str, port: i32, username: &str, enabled: bool) {
+    let mut connection = XMLElement::new("connection");
+    connection.add_attribute("number", i);
+    connection.add_attribute("host", hostname);
+    let mut xml_enabled = XMLElement::new("enabled");
+    xml_enabled.add_text(enabled.to_string());
+
+    let mut xml_port = XMLElement::new("port");
+    xml_port.add_text(port);
+
+    let mut xml_name = XMLElement::new("name");
+    xml_name.add_text(name);
+
+    let mut xml_username = XMLElement::new("username");
+    xml_username.add_text(username);
+
+    let mut authenticate = XMLElement::new("authenticate");
+    authenticate.add_text("true");
+
+    connection.add_child(xml_enabled);
+    connection.add_child(xml_port);
+    connection.add_child(xml_name);
+    connection.add_child(xml_username);
+    connection.add_child(authenticate);
+
+    conf.add_child(connection);
+}
 
 pub async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &str) -> Result<(), Box<dyn Error>> {
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
@@ -23,39 +50,30 @@ pub async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &
     let connections: Api<DdsConnection> = Api::default_namespaced(client.clone());
     // get other lrgs's
     let resolver = Resolver::tokio_from_system_conf().unwrap();
-    let recs = resolver.srv_lookup(lrgs_service_dns).await?;
+    let recs_res = resolver.srv_lookup(lrgs_service_dns).await;
+    
+    let recs = match recs_res {
+        Ok(_) => recs_res.unwrap().iter().map(|srv| {srv.target().to_ascii()}).collect(),
+        Err(e) => match e.kind() {
+            hickory_resolver::error::ResolveErrorKind::NoRecordsFound { query: _, soa: _, negative_ttl: _, response_code: _, trusted: _ } => {
+                println!("No LRGSes configured to setup replication.");
+                Vec::new()
+            },
+            _ => return Err(Box::new(e))
+        }
+    };
     for rec in recs {
+        let name = format!("replication-{}", i);
+        add_connection(&mut ddsrecv_conf, i, &name, &rec, 16003, "replication", true);
         print!("{rec:?}");
+        i = i + 1;
     }
 
     // NOTE: review error handling more. No connections is reasonable, need
     // to make sure this would always just be empty and figure out some other error conditions.
     for host in connections.list(&ListParams::default()).await? {
         println!("found dds {}", host.spec.hostname);
-        let mut connection = XMLElement::new("connection");
-        connection.add_attribute("number", i);
-        connection.add_attribute("host", host.spec.hostname);
-        let mut enabled = XMLElement::new("enabled");
-        enabled.add_text(host.spec.enabled.unwrap_or(true).to_string());
-
-        let mut port = XMLElement::new("port");
-        port.add_text(host.spec.port);
-
-        let mut name = XMLElement::new("name");
-        name.add_text(host.spec.name);
-
-        let mut username = XMLElement::new("username");
-        username.add_text(host.spec.username);
-
-        let mut authenticate = XMLElement::new("authenticate");
-        authenticate.add_text("true");
-
-        connection.add_child(port);
-        connection.add_child(name);
-        connection.add_child(username);
-        connection.add_child(authenticate);
-
-        ddsrecv_conf.add_child(connection);
+        add_connection(&mut ddsrecv_conf, i, &host.spec.name, &host.spec.hostname, host.spec.port, &host.spec.username, host.spec.enabled.unwrap_or(false));
         i = i + 1;
     }
     print!("{}", ddsrecv_conf);
