@@ -1,11 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "opendcs.fullname" . }}
+  name: {{ include "opendcs.fullname" . }}-lrgs
   labels:
     {{- include "opendcs.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
+  sessionAffinity: ClientIP
   ports:
     - port: {{ .Values.service.port }}
       targetPort: dds
@@ -13,3 +14,23 @@ spec:
       name: dds
   selector:
     {{- include "opendcs.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ include "opendcs.name" . }}-lrgs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "opendcs.fullname" . }}-lrgs-headless
+  labels:
+    {{- include "opendcs.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ include "opendcs.name" . }}-lrgs
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 16003
+      targetPort: dds
+      protocol: TCP
+      name: dds
+  selector:
+    {{- include "opendcs.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ include "opendcs.name" . }}-lrgs

@@ -33,7 +33,7 @@ lrgs:
     enabled: true
     storageClass:
     storageSize: 30Gi
-    replicas: 1
+    replicas: 2
     configMap: ""
     conf:
       archiveDir: "$LRGSHOME/archive"

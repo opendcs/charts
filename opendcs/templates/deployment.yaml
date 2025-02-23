@@ -6,6 +6,7 @@ metadata:
   name: {{ include "opendcs.fullname" $  }}-{{$appName}}
   labels:
     {{- include "opendcs.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ include "opendcs.name" $ }}
 spec:  
   replicas: 1
   selector:

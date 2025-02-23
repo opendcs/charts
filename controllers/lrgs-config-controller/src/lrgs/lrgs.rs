@@ -1,5 +1,6 @@
 
 use crate::api::v1::dds_recv::DdsConnection;
+use hickory_resolver::TokioAsyncResolver as Resolver;
 use k8s_openapi::api::core::v1::Secret;
 //use futures::{StreamExt, TryStreamExt};
 use kube::{
@@ -15,11 +16,18 @@ use std::fs::File;
 use super::password_file;
 
 
-pub async fn create_ddsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn Error>> {
+pub async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &str) -> Result<(), Box<dyn Error>> {
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
     // Read pods in the configured namespace into the typed interface from k8s-openapi
     let connections: Api<DdsConnection> = Api::default_namespaced(client.clone());
+    // get other lrgs's
+    let resolver = Resolver::tokio_from_system_conf().unwrap();
+    let recs = resolver.srv_lookup(lrgs_service_dns).await?;
+    for rec in recs {
+        print!("{rec:?}");
+    }
+
     // NOTE: review error handling more. No connections is reasonable, need
     // to make sure this would always just be empty and figure out some other error conditions.
     for host in connections.list(&ListParams::default()).await? {

@@ -5,6 +5,7 @@ metadata:
   name: {{ include "opendcs.fullname" .  }}-lrgs
   labels:
     {{- include "opendcs.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ include "opendcs.name" . }}-lrgs
 spec:
   selector:
     matchLabels:
@@ -20,6 +21,7 @@ spec:
       {{- end }}
       labels:
         app: {{ include "opendcs.fullname" $  }}-lrgs # has to match .spec.template.metadata.labels
+        app.kubernetes.io/name: {{ include "opendcs.name" . }}-lrgs
         {{- include "opendcs.labels" $ | nindent 8 }}
         {{- with $.Values.podLabels }}
         {{- toYaml $ | nindent 8 }}

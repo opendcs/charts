@@ -17,6 +17,8 @@ struct Cli {
     /// The path to write output to
     #[arg(short, long, default_value = "./")]
     conf_dir: std::path::PathBuf,
+    #[arg(short, long,)]
+    lrgs_service: String,
 }
 
 #[tokio::main]
@@ -26,7 +28,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let client = Client::try_default().await?;
 
     let file = File::create(args.conf_dir.join("ddsrecv.conf"))?;
-    create_ddsrecv_conf(client.clone(), file).await?;
+    create_ddsrecv_conf(client.clone(), file, &args.lrgs_service).await?;
 
     let pw_file = File::create(args.conf_dir.join(".lrgs.passwd"))?;
     create_password_file(client.clone(), pw_file).await?;
