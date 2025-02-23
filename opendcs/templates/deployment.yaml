@@ -3,10 +3,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "opendcs.fullname" $  }}-{{$appName}}
+  name: {{$appName}}
   labels:
     {{- include "opendcs.labels" $ | nindent 4 }}
-    app.kubernetes.io/name: {{ include "opendcs.name" $ }}
+    app.kubernetes.io/name: {{ $appName }}
 spec:  
   replicas: 1
   selector:

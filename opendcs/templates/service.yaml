@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "opendcs.fullname" . }}-lrgs
+  name: lrgs
   labels:
     {{- include "opendcs.labels" . | nindent 4 }}
 spec:
@@ -14,15 +14,15 @@ spec:
       name: dds
   selector:
     {{- include "opendcs.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/name: {{ include "opendcs.name" . }}-lrgs
+    app.kubernetes.io/name: lrgs
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "opendcs.fullname" . }}-lrgs-headless
+  name: lrgs-headless
   labels:
     {{- include "opendcs.labels" . | nindent 4 }}
-    app.kubernetes.io/name: {{ include "opendcs.name" . }}-lrgs
+    app.kubernetes.io/name: lrgs
 spec:
   type: ClusterIP
   clusterIP: None
@@ -33,4 +33,4 @@ spec:
       name: dds
   selector:
     {{- include "opendcs.selectorLabels" . | nindent 4 }}
-    app.kubernetes.io/name: {{ include "opendcs.name" . }}-lrgs
+    app.kubernetes.io/name: lrgs
