@@ -31,5 +31,5 @@ simple-xml-builder = "1.1.0"
 clap = { version = "4.0", features = ["derive", "string"] }
 sha1 = "0.10"
 base16ct = { version = "0.2.0", features = ["alloc"] }
-hickory-client = "0.24.4"
 hickory-resolver = "0.24.4"
+jsonptr = "0.7.1"

@@ -35,6 +35,14 @@ spec:
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
       terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: build-config
+          image: git.hobbyscience.net/homelab/k8s/lrgs-config-controller:20250224
+          imagePullPolicy: IfNotPresent
+          command: ["/controller", "-c", "/generated", "-l", "lrgs-headless"]
+          volumeMounts:
+            - name: lrgs-config
+              mountPath: /generated
       containers:
         - name: lrgs
           image: {{ $.Values.image.repository }}/lrgs:{{ $.Values.image.tag | default $.Chart.AppVersion }}
@@ -54,6 +62,8 @@ spec:
               mountPath: /config
             - name: archive
               mountPath: /lrgs_home2
+            - name: lrgs-config
+              mountPath: /generated
           env:
             - name: LRGSHOME
               value: /lrgs_home2
@@ -61,6 +71,9 @@ spec:
         - name: lrgs-config-map
           configMap:
             name: lrgs-configmap
+        - name: lrgs-config
+          emptyDir:
+            sizeLimit: 50Mi
     {{- with $.Values.nodeSelector }}
     nodeSelector:
       {{- toYaml $ | nindent 8 }}
