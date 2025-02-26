@@ -40,20 +40,14 @@ data:
     #!/bin/bash
     export PATH=/opt/opendcs/bin:$PATH
 
-    cp /generated/.lrgs.passwd $LRGSHOME/
-    mkdir $LRGSHOME/net
     
-    cp -r $DCSTOOL_HOME/lrgs/users .
-    cp $DCSTOOL_HOME/lrgs.conf .
-    cp -r $DCSTOOL_HOME/lrgs/netlist .
+    mkdir $LRGSHOME/netlist    
 
     if [ "$LRGS_ADMIN_PASSWORD" == "" ]; then
         LRGS_ADMIN_PASSWORD=`tr -cd '[:alnum:]' < /dev/urandom | fold -w30 | head -n1`
         echo "Admin Password is $LRGS_ADMIN_PASSWORD"
         echo "This will not be printed on subsequent runs"
     fi
-
-    
 
     cat <<EOF | editPasswd
     adduser lrgsadmin
@@ -65,6 +59,10 @@ data:
     quit
     EOF
 
+    for user in `cat $LRGSHOME/.lrgs.passwd | cut -d : -f 1 -s`
+    do
+      mkdir -p $LRGSHOME/users/$user
+    done
 
     DH=$DCSTOOL_HOME
 

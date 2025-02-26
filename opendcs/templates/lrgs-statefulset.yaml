@@ -74,10 +74,10 @@ spec:
             - name: archive
               mountPath: /archive
             - name: lrgs-config
-              mountPath: /generated
+              mountPath: /lrgs_home2
           env:
             - name: LRGSHOME
-              value: /generated
+              value: /lrgs_home2
       volumes:
         - name: lrgs-config-map
           configMap:
