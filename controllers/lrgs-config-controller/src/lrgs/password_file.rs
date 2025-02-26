@@ -39,7 +39,7 @@ impl PasswordFile {
             } else {
                 user.roles.join(",")
             };
-            writeln!(f,"{}:{roles}:{pw_hash}", &user.username)?;
+            writeln!(f,"{}:{roles}:{pw_hash}:", &user.username)?;
         }
         Ok(())
     }

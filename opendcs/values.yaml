@@ -36,10 +36,10 @@ lrgs:
     replicas: 2
     configMap: ""
     conf:
-      archiveDir: "$LRGSHOME/archive"
+      archiveDir: "/archive"
       numDayFiles: 31
       enableDdsRecv: true
-      ddsRecvConfig: "/config/ddsrecv.conf"
+      ddsRecvConfig: "/generated/ddsrecv.conf"
       enableDrgsRecv: false
       drgsRecvConfig: "/config/drgsconf.xml"
       htmlStatusSeconds: 10

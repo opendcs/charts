@@ -1,4 +1,15 @@
 {{- if .Values.lrgs.enabled -}}
+---
+apiVersion: v1
+kind: Secret
+type: lrgs.opendcs.org/ddsuser
+metadata:
+  name: lrgs-replication-user
+stringData:
+  username: replication
+  password: {{randAlphaNum 32}}
+  roles: dds
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -38,7 +49,7 @@ spec:
       initContainers:
         - name: build-config
           image: git.hobbyscience.net/homelab/k8s/lrgs-config-controller:20250224
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command: ["/controller", "-c", "/generated", "-l", "lrgs-headless"]
           volumeMounts:
             - name: lrgs-config
@@ -61,12 +72,12 @@ spec:
             - name: lrgs-config-map
               mountPath: /config
             - name: archive
-              mountPath: /lrgs_home2
+              mountPath: /archive
             - name: lrgs-config
               mountPath: /generated
           env:
             - name: LRGSHOME
-              value: /lrgs_home2
+              value: /generated
       volumes:
         - name: lrgs-config-map
           configMap:
