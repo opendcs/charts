@@ -10,6 +10,16 @@ stringData:
   password: {{randAlphaNum 32}}
   roles: dds
 ---
+apiVersion: v1
+kind: Secret
+type: lrgs.opendcs.org/ddsuser
+metadata:
+  name: routing-user
+stringData:
+  username: routing
+  password: {{randAlphaNum 32}}
+  roles: dds
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
