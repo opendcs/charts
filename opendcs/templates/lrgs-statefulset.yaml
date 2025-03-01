@@ -1,10 +1,32 @@
 {{- if .Values.lrgs.enabled -}}
+---
+apiVersion: v1
+kind: Secret
+type: lrgs.opendcs.org/ddsuser
+metadata:
+  name: lrgs-replication-user
+stringData:
+  username: replication
+  password: {{randAlphaNum 32}}
+  roles: dds
+---
+apiVersion: v1
+kind: Secret
+type: lrgs.opendcs.org/ddsuser
+metadata:
+  name: routing-user
+stringData:
+  username: routing
+  password: {{randAlphaNum 32}}
+  roles: dds
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "opendcs.fullname" .  }}-lrgs
+  name: lrgs
   labels:
     {{- include "opendcs.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: lrgs
 spec:
   selector:
     matchLabels:
@@ -20,6 +42,7 @@ spec:
       {{- end }}
       labels:
         app: {{ include "opendcs.fullname" $  }}-lrgs # has to match .spec.template.metadata.labels
+        app.kubernetes.io/name: lrgs
         {{- include "opendcs.labels" $ | nindent 8 }}
         {{- with $.Values.podLabels }}
         {{- toYaml $ | nindent 8 }}
@@ -33,6 +56,14 @@ spec:
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
       terminationGracePeriodSeconds: 10
+      initContainers:
+        - name: build-config
+          image: git.hobbyscience.net/homelab/k8s/lrgs-config-controller:20250224
+          imagePullPolicy: Always
+          command: ["/controller", "-c", "/generated", "-l", "lrgs-headless"]
+          volumeMounts:
+            - name: lrgs-config
+              mountPath: /generated
       containers:
         - name: lrgs
           image: {{ $.Values.image.repository }}/lrgs:{{ $.Values.image.tag | default $.Chart.AppVersion }}
@@ -51,6 +82,8 @@ spec:
             - name: lrgs-config-map
               mountPath: /config
             - name: archive
+              mountPath: /archive
+            - name: lrgs-config
               mountPath: /lrgs_home2
           env:
             - name: LRGSHOME
@@ -59,6 +92,9 @@ spec:
         - name: lrgs-config-map
           configMap:
             name: lrgs-configmap
+        - name: lrgs-config
+          emptyDir:
+            sizeLimit: 50Mi
     {{- with $.Values.nodeSelector }}
     nodeSelector:
       {{- toYaml $ | nindent 8 }}

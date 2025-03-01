@@ -3,9 +3,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "opendcs.fullname" $  }}-{{$appName}}
+  name: {{$appName}}
   labels:
     {{- include "opendcs.labels" $ | nindent 4 }}
+    app.kubernetes.io/name: {{ $appName }}
 spec:  
   replicas: 1
   selector:
@@ -44,6 +45,8 @@ spec:
           image: "{{ $.Values.image.repository }}/{{$appName}}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           env:
+            - name: test
+              value: "{{$.Capabilities.KubeVersion}}"
             - name: KEYGENERATOR
               value: "decodes.sql.SequenceKeyGenerator"
             - name: DATABASE_TYPE

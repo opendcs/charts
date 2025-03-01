@@ -33,18 +33,18 @@ lrgs:
     enabled: true
     storageClass:
     storageSize: 30Gi
-    replicas: 1
+    replicas: 2
     configMap: ""
     conf:
-      archiveDir: "$LRGSHOME/archive"
+      archiveDir: "/archive"
       numDayFiles: 31
       enableDdsRecv: true
-      ddsRecvConfig: "/config/ddsrecv.conf"
+      ddsRecvConfig: "${LRGSHOME}/ddsrecv.conf"
       enableDrgsRecv: false
-      drgsRecvConfig: "/config/drgsconf.xml"
+      drgsRecvConfig: "${LRGSHOME}/drgsconf.xml"
       htmlStatusSeconds: 10
       ddsListenPort: 16003
-      ddsRequireAuth: false
+      ddsRequireAuth: true
       # this prevents the LRGS from failing to respond if no data is available
       noTimeout: true
 
