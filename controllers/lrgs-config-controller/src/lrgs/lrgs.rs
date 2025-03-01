@@ -73,7 +73,7 @@ pub async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &
     // to make sure this would always just be empty and figure out some other error conditions.
     for host in connections.list(&ListParams::default()).await? {
         println!("found dds {}", host.spec.hostname);
-        add_dds_connection(&mut ddsrecv_conf, i, &host.spec.name, &host.spec.hostname, host.spec.port, &host.spec.username, host.spec.enabled.unwrap_or(false));
+        add_dds_connection(&mut ddsrecv_conf, i, &host.metadata.name.unwrap(), &host.spec.hostname, host.spec.port, &host.spec.username, host.spec.enabled.unwrap_or(false));
         i = i + 1;
     }
     print!("{}", ddsrecv_conf);
