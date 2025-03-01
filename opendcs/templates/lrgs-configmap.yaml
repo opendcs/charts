@@ -6,36 +6,6 @@ metadata:
   labels:
     {{- include "opendcs.labels" $ | nindent 4 }}
 data:
-  ddsrecv.conf: |-
-    <ddsrecvconf>
-      <connection number="0" host="lrgseddn1.cr.usgs.gov">
-        <name>EDDN1</name>
-        <port>16003</port>
-        <enabled>false</enabled>
-        <username>your-DDS-user-name</username>
-        <authenticate>false</authenticate>
-      </connection>
-
-      <connection number="1" host="cdadata.wcda.noaa.gov">
-        <name>CDADATA</name>
-        <port>16003</port>
-        <enabled>false</enabled>
-        <username>your-DDS-user-name</username>
-        <authenticate>false</authenticate>
-      </connection>
-    </ddsrecvconf>
-
-  drgsrecv.xml: |-
-    <?xml version="1.0"?>
-    <drgsconf>
-
-      <!-- Specify up to 64 DRGS connections here... -->
-      
-    <!--
-      Add other connections here (up to number=63)
-    -->
-    </drgsconf>
-
   lrgs.sh: |-
     #!/bin/bash
     export PATH=/opt/opendcs/bin:$PATH

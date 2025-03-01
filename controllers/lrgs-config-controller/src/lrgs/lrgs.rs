@@ -1,5 +1,5 @@
 
-use crate::api::v1::dds_recv::DdsConnection;
+use crate::api::v1::{dds_recv::DdsConnection, drgs::DrgsConnection};
 use hickory_resolver::TokioAsyncResolver as Resolver;
 use k8s_openapi::api::core::v1::Secret;
 //use futures::{StreamExt, TryStreamExt};
@@ -15,7 +15,7 @@ use std::fs::File;
 
 use super::password_file;
 
-fn add_connection(conf: &mut XMLElement, i: i32, name: &str, hostname: &str, port: i32, username: &str, enabled: bool) {
+fn add_dds_connection(conf: &mut XMLElement, i: i32, name: &str, hostname: &str, port: i32, username: &str, enabled: bool) {
     let mut connection = XMLElement::new("connection");
     connection.add_attribute("number", i);
     connection.add_attribute("host", hostname);
@@ -64,7 +64,7 @@ pub async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &
     };
     for rec in recs {
         let name = format!("replication-{}", i);
-        add_connection(&mut ddsrecv_conf, i, &name, &rec, 16003, "replication", true);
+        add_dds_connection(&mut ddsrecv_conf, i, &name, &rec, 16003, "replication", true);
         print!("{rec:?}");
         i = i + 1;
     }
@@ -73,11 +73,54 @@ pub async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &
     // to make sure this would always just be empty and figure out some other error conditions.
     for host in connections.list(&ListParams::default()).await? {
         println!("found dds {}", host.spec.hostname);
-        add_connection(&mut ddsrecv_conf, i, &host.spec.name, &host.spec.hostname, host.spec.port, &host.spec.username, host.spec.enabled.unwrap_or(false));
+        add_dds_connection(&mut ddsrecv_conf, i, &host.spec.name, &host.spec.hostname, host.spec.port, &host.spec.username, host.spec.enabled.unwrap_or(false));
         i = i + 1;
     }
     print!("{}", ddsrecv_conf);
     Ok(ddsrecv_conf.write(file)?)
+}
+
+pub async fn create_drgsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn Error>> {
+    let mut drgsrecv_conf = XMLElement::new("drgsconf");
+    let mut i: i32 = 0;
+    let drgs_connections: Api<DrgsConnection> = Api::default_namespaced(client.clone());
+    for connection in drgs_connections.list(&ListParams::default()).await? {
+        println!(
+            "{i}: {connection:?}"
+        );
+        let mut xml_connection = XMLElement::new("connection");
+        xml_connection.add_attribute("number", i);
+        xml_connection.add_attribute("host", connection.spec.hostname);
+
+        let mut xml_name = XMLElement::new("name");
+        xml_name.add_text(connection.metadata.name.unwrap());
+
+        let mut xml_enable = XMLElement::new("enabled");
+        xml_enable.add_text(connection.spec.enabled.unwrap_or(true));
+
+        let mut xml_msg_port = XMLElement::new("msgport");
+        xml_msg_port.add_text(connection.spec.message_port);
+
+        let mut xml_event_port = XMLElement::new("evtport");
+        xml_event_port.add_text(connection.spec.event_port);
+
+        let mut xml_event_port_enabled = XMLElement::new("evtenabled");
+        xml_event_port_enabled.add_text(connection.spec.event_enabled.unwrap_or(false));
+
+        let mut xml_start_pattern = XMLElement::new("startpattern");
+        xml_start_pattern.add_text(connection.spec.start_pattern);
+
+        xml_connection.add_child(xml_name);
+        xml_connection.add_child(xml_enable);
+        xml_connection.add_child(xml_msg_port);
+        xml_connection.add_child(xml_event_port);
+        xml_connection.add_child(xml_event_port_enabled);
+        xml_connection.add_child(xml_start_pattern);
+        drgsrecv_conf.add_child(xml_connection);
+        
+        i = i +1;
+    }
+    Ok(drgsrecv_conf.write(file)?)
 }
 
 pub async fn create_password_file(client: Client, file: File) -> Result<(), Box<dyn Error>> {

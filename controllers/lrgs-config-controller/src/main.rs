@@ -8,7 +8,7 @@ use std::fs::File;
 mod api;
 mod lrgs;
 
-use lrgs::lrgs::{create_ddsrecv_conf, create_password_file};
+use lrgs::lrgs::{create_ddsrecv_conf, create_drgsrecv_conf, create_password_file};
 
 use clap::Parser;
 
@@ -29,6 +29,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let file = File::create(args.conf_dir.join("ddsrecv.conf"))?;
     create_ddsrecv_conf(client.clone(), file, &args.lrgs_service).await?;
+
+    let file = File::create(args.conf_dir.join("drgsrecv.conf"))?;
+    create_drgsrecv_conf(client.clone(), file).await?;
 
     let pw_file = File::create(args.conf_dir.join(".lrgs.passwd"))?;
     create_password_file(client.clone(), pw_file).await?;
