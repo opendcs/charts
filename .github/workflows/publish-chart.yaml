@@ -37,8 +37,8 @@ jobs:
         run: |
           REPO=`echo ${{github.repository_owner}} | tr  '[:upper:]' '[:lower:]'`
           cd controllers/lrgs-config-controller
-          docker build -t ghcr.io/$REPO/k8s/lrgs-config-controller:{{ steps.chart.outputs.chart:version}} .
-          docker push ghcr.io/$REPO/k8s/lrgs-config-controller:{{ steps.chart.outputs.chart:version}}
+          docker build -t ghcr.io/$REPO/k8s/lrgs-config-controller:{{ steps.chart.outputs.chart_version}} .
+          docker push ghcr.io/$REPO/k8s/lrgs-config-controller:{{ steps.chart.outputs.chart_version}}
       
 
       
