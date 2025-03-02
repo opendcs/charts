@@ -1,0 +1,19 @@
+apiVersion: v1
+entries:
+  OpenDCS:
+  - apiVersion: v2
+    appVersion: main-nightly
+    created: "2025-03-02T17:16:32.968105729Z"
+    dependencies:
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: 16.3.4
+    description: A Helm chart for Kubernetes to run OpenDCS applications
+    digest: 97c072873adad4922098964e02d0ac62566b4f5dc977e0aa6dabb6817d0ce3a6
+    name: OpenDCS
+    type: application
+    urls:
+    - https://github.com/opendcs/charts/releases/download/OpenDCS-0.0.6/OpenDCS-0.0.6.tgz
+    version: 0.0.6
+generated: "2025-03-02T17:16:32.968115537Z"
