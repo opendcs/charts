@@ -11,23 +11,7 @@ data:
     export PATH=/opt/opendcs/bin:$PATH
 
     
-    mkdir $LRGSHOME/netlist    
-
-    if [ "$LRGS_ADMIN_PASSWORD" == "" ]; then
-        LRGS_ADMIN_PASSWORD=`tr -cd '[:alnum:]' < /dev/urandom | fold -w30 | head -n1`
-        echo "Admin Password is $LRGS_ADMIN_PASSWORD"
-        echo "This will not be printed on subsequent runs"
-    fi
-
-    cat <<EOF | editPasswd
-    adduser lrgsadmin
-    $LRGS_ADMIN_PASSWORD
-    $LRGS_ADMIN_PASSWORD
-    addrole lrgsadmin dds
-    addrole lrgsadmin admin
-    write
-    quit
-    EOF
+    mkdir $LRGSHOME/netlist
 
     for user in `cat $LRGSHOME/.lrgs.passwd | cut -d : -f 1 -s`
     do

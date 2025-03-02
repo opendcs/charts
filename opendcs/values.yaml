@@ -33,6 +33,11 @@ lrgs:
     enabled: true
     storageClass:
     storageSize: 30Gi
+    adminPassword:
+      # generate random password for user lrgsadmin the will be created
+      create: true
+      # password to use. if this is null and create is false it is assume you have created the secret or do not want the admin user.
+      password: null
     replicas: 2
     configMap: ""
     conf:
