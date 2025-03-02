@@ -20,6 +20,29 @@ stringData:
   password: {{randAlphaNum 32}}
   roles: dds
 ---
+{{ if .Values.lrgs.adminPassword.create }}
+apiVersion: v1
+kind: Secret
+type: lrgs.opendcs.org/ddsuser
+metadata:
+  name: lrgsadmin
+stringData:
+  username: lrgsadmin
+  password: {{randAlphaNum 32}}
+  roles: dds,admin
+---
+{{ else if .Values.lrgs.adminPassword.password }}
+apiVersion: v1
+kind: Secret
+type: lrgs.opendcs.org/ddsuser
+metadata:
+  name: lrgsadmin
+stringData:
+  username: lrgsadmin
+  password: {{.Values.lrgs.adminPassword.password}}
+  roles: dds,admin
+---
+{{- end -}}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
