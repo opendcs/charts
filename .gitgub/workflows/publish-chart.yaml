@@ -1,0 +1,41 @@
+name: Release Charts
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+      - name: Run chart-releaser
+        id: chart
+        uses: helm/chart-releaser-action@v1.7.0
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Log in to the Container registry
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: create docker images
+        run: |
+          REPO=`echo ${{github.repository_owner}} | tr  '[:upper:]' '[:lower:]'`
+          cd controllers.lrgs-config-controller
+          docker build -t ghcr.io/$REPO/k8s/lrgs-config-controller:{{ steps.chart.outputs.chart:version}} .
+          docker push ghcr.io/$REPO/k8s/lrgs-config-controller:{{ steps.chart.outputs.chart:version}}
+      
+
+      

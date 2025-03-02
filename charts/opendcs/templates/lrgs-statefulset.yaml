@@ -81,7 +81,7 @@ spec:
       terminationGracePeriodSeconds: 10
       initContainers:
         - name: build-config
-          image: git.hobbyscience.net/homelab/k8s/lrgs-config-controller:20250224
+          image: ghcr.io/opendcs/k8s/lrgs-config-controller:{{.Chart.version}}
           imagePullPolicy: Always
           command: ["/controller", "-c", "/generated", "-l", "lrgs-headless"]
           volumeMounts:
