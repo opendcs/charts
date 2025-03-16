@@ -1,10 +1,9 @@
-use core::fmt;
-use std::{collections::BTreeMap, sync::Arc, time::Duration, vec};
+use std::{sync::Arc, time::Duration};
 
 use api::v1::lrgs::LrgsCluster;
 use futures::StreamExt;
-use k8s_openapi::{api::{apps::v1::{StatefulSet, StatefulSetSpec}, core::v1::{PodTemplateSpec, Secret}}, apimachinery::pkg::apis::meta::v1::LabelSelector};
-use kube::{api::{ObjectMeta, Patch, PatchParams}, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Client, Error, Resource, ResourceExt};
+use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::Secret};
+use kube::{api::{Patch, PatchParams}, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Client, Error, Resource, ResourceExt};
 use lrgs::statefulset::create_statefulset;
 
 mod api;
