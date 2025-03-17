@@ -2,9 +2,9 @@ use std::{sync::Arc, time::Duration};
 
 use api::v1::lrgs::LrgsCluster;
 use futures::StreamExt;
-use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::Secret};
+use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::{ConfigMap, Secret}};
 use kube::{api::{Patch, PatchParams}, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Client, Error, Resource, ResourceExt};
-use lrgs::statefulset::create_statefulset;
+use lrgs::{configmap::created_script_config_map, statefulset::create_statefulset};
 
 mod api;
 mod lrgs;
@@ -38,8 +38,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting controller");
     Controller::new(lrgs_cluster.clone(), watcher::Config::default())
         .owns(stateful_set, watcher::Config::default())
+        .owns(secrets.clone(), watcher::Config::default())
         //.owns(api, wc)
-        .watches(secrets, user_watch_config, mapper)
+        .watches(secrets.clone(), user_watch_config, mapper)
         //.reconcile_all_on(trigger)
         .run(reconcile, error_policy , context)
         //.for_each(|_| futures::future::ready(()))
@@ -63,9 +64,13 @@ async fn reconcile(object: Arc<LrgsCluster>, data: Arc<Data>) -> Result<Action, 
     //let name = object.metadata.name.clone();
     let ns = object.metadata.namespace.clone().unwrap_or("default".to_string());
     let stateful_api: Api<StatefulSet> = Api::namespaced(client.clone(), &ns);
+    let config_map_api: Api<ConfigMap> = Api::namespaced(client.clone(), &ns);
+    let lrgs_config_map = created_script_config_map(ns.clone(), &oref);
+
     let lrgs_statefulset = create_statefulset(&object);
     println!("{lrgs_statefulset:?}");
     let serverside = PatchParams::apply("mycontroller");
+    config_map_api.patch(&lrgs_config_map.name_any(), &serverside, &Patch::Apply(lrgs_config_map)).await?;
     stateful_api.patch(&lrgs_statefulset.name_any(), &serverside, &Patch::Apply(lrgs_statefulset)).await?;
     Ok(Action::requeue(Duration::from_secs(3600 / 2)))
 }

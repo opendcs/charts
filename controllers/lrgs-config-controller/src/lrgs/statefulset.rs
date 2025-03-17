@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use k8s_openapi::{api::{apps::v1::{StatefulSet, StatefulSetSpec}, core::v1::{PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimTemplate, PodTemplateSpec, VolumeResourceRequirements}}, apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::{LabelSelector, OwnerReference}}};
+use k8s_openapi::{api::{apps::v1::{StatefulSet, StatefulSetSpec}, core::v1::{ConfigMapVolumeSource, Container, ContainerPort, PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimTemplate, PodSpec, PodTemplateSpec, Volume, VolumeMount, VolumeResourceRequirements}}, apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::{LabelSelector, OwnerReference}}};
 use kube::{api::ObjectMeta, Resource};
 
 use crate::api::v1::lrgs::LrgsCluster;
@@ -53,20 +53,53 @@ fn pod_spec_template(_lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, label
             labels: Some(labels.clone()),            
             owner_references: Some(vec![owner_ref.clone()]),
             annotations: None,
-            creation_timestamp: None,
-            deletion_grace_period_seconds: None,
-            deletion_timestamp: None,
-            finalizers: None,
-            generate_name: None,
-            generation: None,            
-            resource_version: None,
-            self_link: None,
-            uid: None,
-            managed_fields: None,
             name: None,
             namespace: None,
+            ..Default::default()            
         }),
-        spec: None,
+        spec: Some(
+            PodSpec { 
+                containers: vec![
+                    Container {
+                        name: "lrgs".to_string(),
+                        image: Some("ghcr.io/opendcs/lrgs:7.0.15-RC03".to_string()),
+                        command: Some(vec!["/bin/bash".to_string(),"/scripts/lrgs.sh".into(), "-f".into(), "/config/lrgs.conf".into()]),
+                        ports: Some(vec![
+                            ContainerPort {
+                                container_port: 16003,
+                                name: Some("dds".to_string()),
+                                ..Default::default()
+                            }
+                        ]),
+                        volume_mounts: Some(vec![
+                            VolumeMount {
+                                name: "archive".to_string(),
+                                mount_path: "/archive".to_string(),
+                                ..Default::default()
+                            }, 
+                            VolumeMount {
+                                name: "lrgs-scripts".to_string(),
+                                mount_path: "/scripts".to_string(),
+                                ..Default::default()
+                            }
+
+                        ]),
+                        ..Default::default()   
+                    }
+                ],
+                volumes: Some(vec![
+                       Volume {
+                            name: "lrgs-scripts".to_string(),
+                            config_map: Some ( ConfigMapVolumeSource {
+                                name: "lrgs-scripts".to_string(),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                       }
+                ]),
+                ..Default::default()
+         }
+        ),
     }
 }
 
