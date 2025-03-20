@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use api::v1::lrgs::LrgsCluster;
+use api::v1::{dds_recv::DdsConnection, lrgs::LrgsCluster};
 use futures::StreamExt;
 use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::{ConfigMap, Secret}};
 use kube::{api::{Patch, PatchParams}, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Client, Error, Resource, ResourceExt};
@@ -25,25 +25,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::try_default().await?;
     let secrets: Api<Secret> = Api::default_namespaced(client.clone());
     let lrgs_cluster: Api<LrgsCluster> = Api::default_namespaced(client.clone());
+    let dds_connections: Api<DdsConnection> = Api::default_namespaced(client.clone());
     let stateful_set: Api<StatefulSet> = Api::default_namespaced(client.clone());
     let user_watch_config = watcher::Config::default().fields("type=LrgsCluster.opendcs.org/ddsuser");
+
+
     let context = Arc::new(Data {
         client: client.clone(),
     });
 
-    let mapper = |obj: Secret| {
-        let name = obj.metadata.name.unwrap();
-        Some(ObjectRef::new(&name))
+    let user_mapper = |obj: Secret| {
+        let binding = obj.metadata.labels.unwrap();
+        let name = binding.get("lrgs.opendcs.org/lrgs-cluster").unwrap();        
+        let namespace = obj.metadata.namespace.unwrap_or("default".to_string());
+        let obj_ref = ObjectRef::new(name).within(&namespace);
+        Some(obj_ref)
     };
+
+    let dds_mapper = |obj: DdsConnection| {
+        let binding = obj.metadata.labels.unwrap();
+        let name = binding.get("lrgs.opendcs.org/lrgs-cluster").unwrap();
+        let namespace = obj.metadata.namespace.unwrap_or("default".to_string());
+        let obj_ref = ObjectRef::new(name).within(&namespace);
+        Some(obj_ref)
+    };
+
+
     println!("Starting controller");
     Controller::new(lrgs_cluster.clone(), watcher::Config::default())
         .owns(stateful_set, watcher::Config::default())
         .owns(secrets.clone(), watcher::Config::default())
-        //.owns(api, wc)
-        .watches(secrets.clone(), user_watch_config, mapper)
-        //.reconcile_all_on(trigger)
+        .watches(secrets.clone(), user_watch_config, user_mapper)
+        .watches(dds_connections.clone(), watcher::Config::default(), dds_mapper)
         .run(reconcile, error_policy , context)
-        //.for_each(|_| futures::future::ready(()))
         .for_each(|res| async move {
             match res {
                 Ok(o) => println!("reconciled {:?}", o),

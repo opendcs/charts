@@ -91,7 +91,7 @@ fn pod_spec_template(_lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, label
                        Volume {
                             name: "lrgs-scripts".to_string(),
                             config_map: Some ( ConfigMapVolumeSource {
-                                name: "lrgs-scripts".to_string(),
+                                name: format!("{}-lrgs-scripts",owner_ref.name),
                                 ..Default::default()
                             }),
                             ..Default::default()

@@ -43,7 +43,7 @@ fn add_dds_connection(conf: &mut XMLElement, i: i32, name: &str, hostname: &str,
     conf.add_child(connection);
 }
 
-pub async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &str) -> Result<(), Box<dyn Error>> {
+async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &str) -> Result<(), Box<dyn Error>> {
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
     // Read pods in the configured namespace into the typed interface from k8s-openapi
@@ -80,7 +80,7 @@ pub async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &
     Ok(ddsrecv_conf.write(file)?)
 }
 
-pub async fn create_drgsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn Error>> {
+async fn create_drgsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn Error>> {
     let mut drgsrecv_conf = XMLElement::new("drgsconf");
     let mut i: i32 = 0;
     let drgs_connections: Api<DrgsConnection> = Api::default_namespaced(client.clone());
@@ -123,7 +123,7 @@ pub async fn create_drgsrecv_conf(client: Client, file: File) -> Result<(), Box<
     Ok(drgsrecv_conf.write(file)?)
 }
 
-pub async fn create_password_file(client: Client, file: File) -> Result<(), Box<dyn Error>> {
+async fn create_password_file(client: Client, file: File) -> Result<(), Box<dyn Error>> {
     let users: Api<Secret> = Api::default_namespaced(client.clone());
     let params = ListParams::default().fields("type=lrgs.opendcs.org/ddsuser");
     let mut pw_file = password_file::PasswordFile::new(file);
@@ -149,4 +149,15 @@ pub async fn create_password_file(client: Client, file: File) -> Result<(), Box<
         }
     }
     Ok(pw_file.write_file()?)
+}
+
+
+pub fn create_lrgs_config(client: Client, lrgs_name: &String) -> Secret {
+    Secret {
+        data: todo!(),
+        immutable: todo!(),
+        metadata: todo!(),
+        string_data: todo!(),
+        type_: todo!(),
+    }
 }

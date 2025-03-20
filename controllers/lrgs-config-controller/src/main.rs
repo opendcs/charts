@@ -8,7 +8,7 @@ use std::fs::File;
 mod api;
 mod lrgs;
 
-use lrgs::lrgs::{create_ddsrecv_conf, create_drgsrecv_conf, create_password_file};
+use lrgs::config::{create_ddsrecv_conf, create_drgsrecv_conf, create_password_file};
 
 use clap::Parser;
 
