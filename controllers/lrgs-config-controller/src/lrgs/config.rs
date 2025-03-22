@@ -1,16 +1,17 @@
 
 use crate::api::v1::{dds_recv::DdsConnection, drgs::DrgsConnection};
 use hickory_resolver::TokioAsyncResolver as Resolver;
-use k8s_openapi::api::core::v1::Secret;
+use k8s_openapi::{api::core::v1::Secret, ByteString};
 //use futures::{StreamExt, TryStreamExt};
 use kube::{
-    api::{Api, ListParams},
+    api::{Api, ListParams, ObjectMeta},
     Client,
 };
+use sha2::{Sha256, Digest};
 use simple_xml_builder::XMLElement;
 //, PostParams}};
 
-use std::{error::Error, vec};
+use std::{collections::BTreeMap, error::Error, vec};
 use std::fs::File;
 
 use super::password_file;
@@ -43,7 +44,7 @@ fn add_dds_connection(conf: &mut XMLElement, i: i32, name: &str, hostname: &str,
     conf.add_child(connection);
 }
 
-async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &str) -> Result<(), Box<dyn Error>> {
+async fn create_ddsrecv_conf(client: Client, lrgs_service_dns: &str) -> Result<String, Box<dyn Error>> {
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
     // Read pods in the configured namespace into the typed interface from k8s-openapi
@@ -77,10 +78,10 @@ async fn create_ddsrecv_conf(client: Client, file: File, lrgs_service_dns: &str)
         i = i + 1;
     }
     print!("{}", ddsrecv_conf);
-    Ok(ddsrecv_conf.write(file)?)
+    Ok(ddsrecv_conf.to_string())
 }
 
-async fn create_drgsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn Error>> {
+async fn create_drgsrecv_conf(client: Client) -> Result<String, Box<dyn Error>> {
     let mut drgsrecv_conf = XMLElement::new("drgsconf");
     let mut i: i32 = 0;
     let drgs_connections: Api<DrgsConnection> = Api::default_namespaced(client.clone());
@@ -120,13 +121,13 @@ async fn create_drgsrecv_conf(client: Client, file: File) -> Result<(), Box<dyn 
         
         i = i +1;
     }
-    Ok(drgsrecv_conf.write(file)?)
+    Ok(drgsrecv_conf.to_string())
 }
 
-async fn create_password_file(client: Client, file: File) -> Result<(), Box<dyn Error>> {
+async fn create_password_file(client: Client) -> Result<String, Box<dyn Error>> {
     let users: Api<Secret> = Api::default_namespaced(client.clone());
     let params = ListParams::default().fields("type=lrgs.opendcs.org/ddsuser");
-    let mut pw_file = password_file::PasswordFile::new(file);
+    let mut pw_file = password_file::PasswordFile::new();
     for user in users.list(&params).await? {
         let data = user.data;
         if data.is_some() {
@@ -148,16 +149,44 @@ async fn create_password_file(client: Client, file: File) -> Result<(), Box<dyn 
             });
         }
     }
-    Ok(pw_file.write_file()?)
+    Ok(pw_file.to_string())
 }
 
+pub struct LrgsConfig {
+    pub secret: Secret,
+    pub hash: String
+}
 
-pub fn create_lrgs_config(client: Client, lrgs_name: &String) -> Secret {
-    Secret {
-        data: todo!(),
-        immutable: todo!(),
-        metadata: todo!(),
-        string_data: todo!(),
-        type_: todo!(),
-    }
+pub async fn create_lrgs_config(client: Client, lrgs_name: &String) -> Result<LrgsConfig, Box<dyn Error>> {
+    let mut hasher = Sha256::new();
+
+    let password_file = create_password_file(client.clone()).await?;
+    hasher.update(password_file.as_bytes());
+
+    let dds_config = create_ddsrecv_conf(client.clone(), "main").await?;
+    hasher.update(dds_config.as_bytes());
+
+
+    let password_file_data = Vec::from(password_file);
+
+    let secret = Secret {
+        data: Some(
+            BTreeMap::from([
+                ("password_file".to_string(), ByteString(password_file_data))
+            ])
+        ),
+        metadata: ObjectMeta {
+            name: Some("lrgs-configuration".to_string()),
+            //owner_references: todo!(),
+            ..Default::default()
+            
+        },
+        ..Default::default()
+    };
+
+    let hash = base16ct::lower::encode_string(&hasher.finalize());
+    return Ok(LrgsConfig {
+        secret,
+        hash
+    })
 }
