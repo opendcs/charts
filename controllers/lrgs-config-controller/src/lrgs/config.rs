@@ -11,7 +11,7 @@ use sha2::{Sha256, Digest};
 use simple_xml_builder::XMLElement;
 //, PostParams}};
 
-use std::{collections::BTreeMap, vec};
+use std::{collections::BTreeMap, fmt::format, vec};
 use anyhow::{anyhow, Result};
 
 use super::password_file;
@@ -163,7 +163,8 @@ pub async fn create_lrgs_config(client: Client, cluster: &LrgsCluster, owner_ref
     let password_file = create_password_file(client.clone(), ).await?;
     hasher.update(password_file.as_bytes());
 
-    let dds_config = create_ddsrecv_conf(client.clone(), "main").await?;
+    let dns = format!("{}-lrgs-service-headless", &owner_ref.name);
+    let dds_config = create_ddsrecv_conf(client.clone(), &dns).await?;
     hasher.update(dds_config.as_bytes());
 
     let drgs_config = create_drgsrecv_conf(client.clone()).await?;
@@ -182,7 +183,7 @@ pub async fn create_lrgs_config(client: Client, cluster: &LrgsCluster, owner_ref
             ])
         ),
         metadata: ObjectMeta {
-            name: Some("lrgs-configuration".to_string()),
+            name: Some(format!("{}-lrgs-configuration",&owner_ref.name)),
             namespace: cluster.namespace().clone(),
             owner_references: Some(vec![owner_ref.clone()]),
             annotations: Some(

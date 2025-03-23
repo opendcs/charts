@@ -40,7 +40,7 @@ pub fn create_statefulset(lrgs_spec: &LrgsCluster, config_hash: String) -> State
 
     StatefulSet {
         metadata: ObjectMeta {
-            name: lrgs_spec.metadata.name.clone(),
+            name: Some(format!("{}-lrgs",lrgs_spec.metadata.name.clone().unwrap())),
             owner_references: Some(vec![owner_ref]),
             labels: Some(labels.clone()),
             annotations: Some(annotations.clone()),
