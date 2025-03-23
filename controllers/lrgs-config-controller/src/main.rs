@@ -2,7 +2,7 @@ use std::{io::{self, ErrorKind}, sync::Arc, time::Duration};
 
 use api::v1::{dds_recv::DdsConnection, lrgs::LrgsCluster};
 use futures::StreamExt;
-use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::{ConfigMap, Secret}};
+use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::{ConfigMap, Secret, Service}};
 use kube::{api::{Patch, PatchParams}, config::InferConfigError, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Client, Error, Resource, ResourceExt};
 use lrgs::{config::create_lrgs_config, configmap::created_script_config_map, statefulset::create_statefulset};
 
@@ -77,25 +77,23 @@ async fn reconcile(object: Arc<LrgsCluster>, data: Arc<Data>) -> Result<Action, 
     let client = &data.client;
     let name = object.metadata.name.clone().unwrap();
     let ns = object.metadata.namespace.clone().unwrap_or("default".to_string());
-    let stateful_api: Api<StatefulSet> = Api::namespaced(client.clone(), &ns);
-    let config_map_api: Api<ConfigMap> = Api::namespaced(client.clone(), &ns);
-    let secrets_api: Api<Secret> = Api::namespaced(client.clone(), &ns);
+    let stateful_api: Api<StatefulSet> = Api::all(client.clone());
+    let config_map_api: Api<ConfigMap> = Api::all(client.clone());
+    let secrets_api: Api<Secret> = Api::all(client.clone());
+    let service_api: Api<Service> = Api::all(client.clone());
 
     let lrgs_config_map = created_script_config_map(ns.clone(), &oref);
-  
-    let lrgs_config = create_lrgs_config(client.clone(), &name);
-    let lrgs_config = lrgs_config.await;
+    let lrgs_config = create_lrgs_config(client.clone(), &object, &oref).await;
     if lrgs_config.is_err() {
         let error = lrgs_config.err().unwrap();
         println!("Unable to build Configuration for Lrgs Cluster {}", error);
         //return Err(kube::Error::ReadEvents(io::Error::new(ErrorKind::Other, error.to_string())))  ;
         return Ok(Action::requeue(Duration::from_secs(3600)));
     } 
-    let lrgs_config = lrgs_config.unwrap();
-    println!("{:?}, {}", lrgs_config.secret, lrgs_config.hash);
+    let lrgs_config = lrgs_config.ok().unwrap();
     let lrgs_config_secret = lrgs_config.secret;
 
-    let lrgs_statefulset = create_statefulset(&object);
+    let lrgs_statefulset = create_statefulset(&object, lrgs_config.hash.clone());
     println!("{lrgs_statefulset:?}");
     let serverside = PatchParams::apply("mycontroller");
     secrets_api.patch(&lrgs_config_secret.name_any(),&serverside, &Patch::Apply(lrgs_config_secret)).await?;

@@ -1,18 +1,18 @@
 
-use crate::api::v1::{dds_recv::DdsConnection, drgs::DrgsConnection};
+use crate::api::{constants::LRGS_GROUP, v1::{dds_recv::DdsConnection, drgs::DrgsConnection, lrgs::LrgsCluster}};
 use hickory_resolver::TokioAsyncResolver as Resolver;
-use k8s_openapi::{api::core::v1::Secret, ByteString};
+use k8s_openapi::{api::core::v1::Secret, apimachinery::pkg::apis::meta::v1::OwnerReference, ByteString};
 //use futures::{StreamExt, TryStreamExt};
 use kube::{
     api::{Api, ListParams, ObjectMeta},
-    Client,
+    Client, ResourceExt,
 };
 use sha2::{Sha256, Digest};
 use simple_xml_builder::XMLElement;
 //, PostParams}};
 
-use std::{collections::BTreeMap, error::Error, vec};
-use std::fs::File;
+use std::{collections::BTreeMap, vec};
+use anyhow::{anyhow, Result};
 
 use super::password_file;
 
@@ -44,7 +44,7 @@ fn add_dds_connection(conf: &mut XMLElement, i: i32, name: &str, hostname: &str,
     conf.add_child(connection);
 }
 
-async fn create_ddsrecv_conf(client: Client, lrgs_service_dns: &str) -> Result<String, Box<dyn Error>> {
+async fn create_ddsrecv_conf(client: Client, lrgs_service_dns: &str) -> Result<String> {
     let mut ddsrecv_conf = XMLElement::new("ddsrecvconf");
     let mut i: i32 = 0;
     // Read pods in the configured namespace into the typed interface from k8s-openapi
@@ -60,7 +60,7 @@ async fn create_ddsrecv_conf(client: Client, lrgs_service_dns: &str) -> Result<S
                 println!("No LRGSes configured to setup replication.");
                 Vec::new()
             },
-            _ => return Err(Box::new(e))
+            _ => return Err(anyhow!(e))
         }
     };
     for rec in recs {
@@ -81,7 +81,7 @@ async fn create_ddsrecv_conf(client: Client, lrgs_service_dns: &str) -> Result<S
     Ok(ddsrecv_conf.to_string())
 }
 
-async fn create_drgsrecv_conf(client: Client) -> Result<String, Box<dyn Error>> {
+async fn create_drgsrecv_conf(client: Client) -> Result<String> {
     let mut drgsrecv_conf = XMLElement::new("drgsconf");
     let mut i: i32 = 0;
     let drgs_connections: Api<DrgsConnection> = Api::default_namespaced(client.clone());
@@ -124,7 +124,7 @@ async fn create_drgsrecv_conf(client: Client) -> Result<String, Box<dyn Error>> 
     Ok(drgsrecv_conf.to_string())
 }
 
-async fn create_password_file(client: Client) -> Result<String, Box<dyn Error>> {
+async fn create_password_file(client: Client) -> Result<String> {
     let users: Api<Secret> = Api::default_namespaced(client.clone());
     let params = ListParams::default().fields("type=lrgs.opendcs.org/ddsuser");
     let mut pw_file = password_file::PasswordFile::new();
@@ -157,27 +157,41 @@ pub struct LrgsConfig {
     pub hash: String
 }
 
-pub async fn create_lrgs_config(client: Client, lrgs_name: &String) -> Result<LrgsConfig, Box<dyn Error>> {
+pub async fn create_lrgs_config(client: Client, cluster: &LrgsCluster, owner_ref: &OwnerReference) -> Result<LrgsConfig> {
     let mut hasher = Sha256::new();
 
-    let password_file = create_password_file(client.clone()).await?;
+    let password_file = create_password_file(client.clone(), ).await?;
     hasher.update(password_file.as_bytes());
 
     let dds_config = create_ddsrecv_conf(client.clone(), "main").await?;
     hasher.update(dds_config.as_bytes());
 
+    let drgs_config = create_drgsrecv_conf(client.clone()).await?;
+    hasher.update(drgs_config.as_bytes());
 
     let password_file_data = Vec::from(password_file);
+    let dds_config_data = Vec::from(dds_config);
+    let drgs_config_data = Vec::from(drgs_config);
 
     let secret = Secret {
         data: Some(
             BTreeMap::from([
-                ("password_file".to_string(), ByteString(password_file_data))
+                ("password_file".to_string(), ByteString(password_file_data)),
+                ("dds_recv_config".to_string(), ByteString(dds_config_data)),
+                ("drgs_recv_config".to_string(), ByteString(drgs_config_data))
             ])
         ),
         metadata: ObjectMeta {
             name: Some("lrgs-configuration".to_string()),
-            //owner_references: todo!(),
+            namespace: cluster.namespace().clone(),
+            owner_references: Some(vec![owner_ref.clone()]),
+            annotations: Some(
+                BTreeMap::from(
+                    [
+                        (format!("{}/for-cluster",LRGS_GROUP.as_str()).clone(),cluster.metadata.name.clone().unwrap())
+                    ]
+                )
+            ),
             ..Default::default()
             
         },

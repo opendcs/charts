@@ -1,19 +1,23 @@
 use std::collections::BTreeMap;
 
-use k8s_openapi::{api::{apps::v1::{StatefulSet, StatefulSetSpec}, core::v1::{ConfigMapVolumeSource, Container, ContainerPort, PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimTemplate, PodSpec, PodTemplateSpec, Volume, VolumeMount, VolumeResourceRequirements}}, apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::{LabelSelector, OwnerReference}}};
+use hickory_resolver::config;
+use k8s_openapi::{api::{apps::v1::{StatefulSet, StatefulSetSpec}, core::v1::{ConfigMapVolumeSource, Container, ContainerPort, PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimTemplate, PodSpec, PodTemplateSpec, SecretVolumeSource, Volume, VolumeMount, VolumeResourceRequirements}}, apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::{LabelSelector, OwnerReference}}};
 use kube::{api::ObjectMeta, Resource};
 
-use crate::api::v1::lrgs::LrgsCluster;
+use crate::api::{constants::LRGS_GROUP, v1::lrgs::LrgsCluster};
 
 
 
-pub fn create_statefulset(lrgs_spec: &LrgsCluster) -> StatefulSet {
+pub fn create_statefulset(lrgs_spec: &LrgsCluster, config_hash: String) -> StatefulSet {
     let owner_ref = lrgs_spec.controller_owner_ref(&()).unwrap();
 
     let mut labels: BTreeMap<String,String> = BTreeMap::new();
     labels.insert("app.kubernetes.io/name".to_string(), "lrgs".to_string());
 
-    let pod_spec = pod_spec_template(lrgs_spec, &owner_ref, &labels);
+    let mut annotations: BTreeMap<String, String> = BTreeMap::new();
+    annotations.insert(format!("{}/lrgs-config-hash",LRGS_GROUP.as_str()),config_hash);
+
+    let pod_spec = pod_spec_template(lrgs_spec, &owner_ref, &labels, &annotations);
     let pvct = claim_templates(lrgs_spec, &owner_ref, &labels);
 
 
@@ -39,6 +43,7 @@ pub fn create_statefulset(lrgs_spec: &LrgsCluster) -> StatefulSet {
             name: lrgs_spec.metadata.name.clone(),
             owner_references: Some(vec![owner_ref]),
             labels: Some(labels.clone()),
+            annotations: Some(annotations.clone()),
             ..ObjectMeta::default()
         },
         spec: Some(the_spec),
@@ -47,12 +52,12 @@ pub fn create_statefulset(lrgs_spec: &LrgsCluster) -> StatefulSet {
 }
 
 
-fn pod_spec_template(_lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, labels: &BTreeMap<String,String>) -> PodTemplateSpec {
+fn pod_spec_template(_lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, labels: &BTreeMap<String,String>, annotations: &BTreeMap<String,String>) -> PodTemplateSpec {
     PodTemplateSpec {
         metadata: Some(ObjectMeta {
             labels: Some(labels.clone()),            
             owner_references: Some(vec![owner_ref.clone()]),
-            annotations: None,
+            annotations: Some(annotations.clone()),
             name: None,
             namespace: None,
             ..Default::default()            
@@ -81,6 +86,11 @@ fn pod_spec_template(_lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, label
                                 name: "lrgs-scripts".to_string(),
                                 mount_path: "/scripts".to_string(),
                                 ..Default::default()
+                            },
+                            VolumeMount {
+                                name: "lrgs-config".to_string(),
+                                mount_path: "/lrgs_home2".to_string(),
+                                ..Default::default()
                             }
 
                         ]),
@@ -92,6 +102,14 @@ fn pod_spec_template(_lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, label
                             name: "lrgs-scripts".to_string(),
                             config_map: Some ( ConfigMapVolumeSource {
                                 name: format!("{}-lrgs-scripts",owner_ref.name),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                       },
+                       Volume {
+                            name: "lrgs-config".to_string(),
+                            secret: Some ( SecretVolumeSource {
+                                secret_name: Some(format!("{}-lrgs-configuration", owner_ref.name)),
                                 ..Default::default()
                             }),
                             ..Default::default()
