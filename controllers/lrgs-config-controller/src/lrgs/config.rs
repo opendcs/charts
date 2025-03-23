@@ -1,12 +1,12 @@
 
-use crate::api::{constants::LRGS_GROUP, v1::{dds_recv::DdsConnection, drgs::DrgsConnection, lrgs::LrgsCluster}};
+use crate::api::{constants::LRGS_GROUP, v1::{dds_recv::DdsConnection, drgs::DrgsConnection, lrgs::{self, LrgsCluster}}};
 use hickory_resolver::TokioAsyncResolver as Resolver;
 use k8s_openapi::{api::core::v1::Secret, apimachinery::pkg::apis::meta::v1::OwnerReference, ByteString};
 //use futures::{StreamExt, TryStreamExt};
 use kube::{
-    api::{Api, ListParams, ObjectMeta},
-    Client, ResourceExt,
+    api::{Api, ListParams, ObjectMeta}, Client, Error, ResourceExt
 };
+use passwords::PasswordGenerator;
 use sha2::{Sha256, Digest};
 use simple_xml_builder::XMLElement;
 //, PostParams}};
@@ -51,6 +51,7 @@ async fn create_ddsrecv_conf(client: Client, lrgs_service_dns: &str) -> Result<S
     let connections: Api<DdsConnection> = Api::default_namespaced(client.clone());
     // get other lrgs's
     let resolver = Resolver::tokio_from_system_conf().unwrap();
+    println!("Using DNS entry {} for lookup.", lrgs_service_dns);
     let recs_res = resolver.srv_lookup(lrgs_service_dns).await;
     
     let recs = match recs_res {
@@ -66,7 +67,7 @@ async fn create_ddsrecv_conf(client: Client, lrgs_service_dns: &str) -> Result<S
     for rec in recs {
         let name = format!("replication-{}", i);
         add_dds_connection(&mut ddsrecv_conf, i, &name, &rec, 16003, "replication", true);
-        print!("{rec:?}");
+        print!("Adding: {rec:?}");
         i = i + 1;
     }
 
@@ -86,9 +87,7 @@ async fn create_drgsrecv_conf(client: Client) -> Result<String> {
     let mut i: i32 = 0;
     let drgs_connections: Api<DrgsConnection> = Api::default_namespaced(client.clone());
     for connection in drgs_connections.list(&ListParams::default()).await? {
-        println!(
-            "{i}: {connection:?}"
-        );
+        println!("Adding DRGS Connection {i}: {}", connection.spec.hostname);
         let mut xml_connection = XMLElement::new("connection");
         xml_connection.add_attribute("number", i);
         xml_connection.add_attribute("host", connection.spec.hostname);
@@ -170,6 +169,19 @@ pub async fn create_lrgs_config(client: Client, cluster: &LrgsCluster, owner_ref
     let drgs_config = create_drgsrecv_conf(client.clone()).await?;
     hasher.update(drgs_config.as_bytes());
 
+    let config_file_data = Vec::from("
+archiveDir: /archive
+enableDdsRecv: true
+ddsRecvConfig: ${LRGSHOME}/ddsrecv.conf
+enableDrgsRecv: false
+drgsRecvConfig: ${LRGSHOME}/drgsconf.xml
+htmlStatusSeconds: 10
+ddsListenPort: 16003
+ddsRequireAuth: true
+# this prevents the LRGS from failing to respond if no data is available
+noTimeout: true
+    ".to_string());
+
     let password_file_data = Vec::from(password_file);
     let dds_config_data = Vec::from(dds_config);
     let drgs_config_data = Vec::from(drgs_config);
@@ -177,9 +189,10 @@ pub async fn create_lrgs_config(client: Client, cluster: &LrgsCluster, owner_ref
     let secret = Secret {
         data: Some(
             BTreeMap::from([
-                ("password_file".to_string(), ByteString(password_file_data)),
-                ("dds_recv_config".to_string(), ByteString(dds_config_data)),
-                ("drgs_recv_config".to_string(), ByteString(drgs_config_data))
+                (".lrgs.passwd".to_string(), ByteString(password_file_data)),
+                ("ddsrecv.conf".to_string(), ByteString(dds_config_data)),
+                ("drgsconf.xml".to_string(), ByteString(drgs_config_data)),
+                ("lrgs.conf".to_string(), ByteString(config_file_data))
             ])
         ),
         metadata: ObjectMeta {
@@ -204,4 +217,67 @@ pub async fn create_lrgs_config(client: Client, cluster: &LrgsCluster, owner_ref
         secret,
         hash
     })
+}
+
+
+pub async fn create_managed_users(client: Client, lrgs_cluster: &LrgsCluster, owner_ref: &OwnerReference) -> Result<Vec<Secret>> {
+    let ns = lrgs_cluster.metadata.namespace.clone().unwrap();
+    let cluster_name = lrgs_cluster.metadata.name.clone().unwrap();
+    let secrets_api: Api<Secret> = Api::namespaced(client, &ns);
+    let required = Vec::from(["lrgsadmin","replication","routing-user"]);
+    let mut managed_users = Vec::new();
+    for user in required {
+        match secrets_api.get_opt(user).await? {
+            Some(_) => println!("User already exists."), // Perhaps we should put a rotation here
+            None => {
+                let password = PasswordGenerator {
+                    length: 64,
+                    numbers: true,
+                    lowercase_letters: true,
+                    uppercase_letters: true,
+                    symbols: false,
+                    spaces: false,
+                    exclude_similar_characters: false,
+                    strict: true
+                }.generate_one().unwrap();
+                let roles = match user {
+                    "lrgsadmin" => "dds,lrgsadmin",
+                    "replication" => "dds",
+                    "routing-user" => "dds",
+                    &_ => ""
+                };
+                managed_users.push(
+                    Secret {
+                        data: Some(
+                            BTreeMap::from([
+                                ("username".to_string(), ByteString(Vec::from(user))),
+                                ("password".to_string(), ByteString(Vec::from(password))),
+                                ("roles".to_string(), ByteString(Vec::from(roles)))
+                            ])
+                        ),
+                        type_: Some("lrgs.opendcs.org/ddsuser".to_string()),
+                        metadata: ObjectMeta {
+                            name: Some(user.to_string()),
+                            namespace: lrgs_cluster.namespace().clone(),
+                            owner_references: Some(vec![owner_ref.clone()]),
+                            annotations: Some(
+                                BTreeMap::from(
+                                    [
+                                        (format!("{}/for-cluster",LRGS_GROUP.as_str()).clone(), cluster_name.clone())
+                                    ]
+                                )
+                            ),
+                            ..Default::default()
+                            
+                        },
+                        ..Default::default()
+                    }                
+                );
+            },
+        };
+    }
+
+    
+    
+    Ok(managed_users)
 }

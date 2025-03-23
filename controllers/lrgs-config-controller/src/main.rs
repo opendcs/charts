@@ -4,7 +4,7 @@ use api::v1::{dds_recv::DdsConnection, lrgs::LrgsCluster};
 use futures::StreamExt;
 use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::{ConfigMap, Secret, Service}};
 use kube::{api::{Patch, PatchParams}, config::InferConfigError, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Client, Error, Resource, ResourceExt};
-use lrgs::{config::create_lrgs_config, configmap::created_script_config_map, service::create_service, statefulset::create_statefulset};
+use lrgs::{config::{create_lrgs_config, create_managed_users}, configmap::created_script_config_map, service::create_service, statefulset::create_statefulset};
 
 mod api;
 mod lrgs;
@@ -24,6 +24,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Infer the runtime environment and try to create a Kubernetes Client
     let client = Client::try_default().await?;
     let secrets: Api<Secret> = Api::default_namespaced(client.clone());
+    let services: Api<Service> = Api::default_namespaced(client.clone());
     let lrgs_cluster: Api<LrgsCluster> = Api::default_namespaced(client.clone());
     let dds_connections: Api<DdsConnection> = Api::default_namespaced(client.clone());
     let stateful_set: Api<StatefulSet> = Api::default_namespaced(client.clone());
@@ -55,6 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Controller::new(lrgs_cluster.clone(), watcher::Config::default())
         .owns(stateful_set, watcher::Config::default())
         .owns(secrets.clone(), watcher::Config::default())
+        .owns(services.clone(), watcher::Config::default())
         .watches(secrets.clone(), user_watch_config, user_mapper)
         .watches(dds_connections.clone(), watcher::Config::default(), dds_mapper)
         .run(reconcile, error_policy , context)
@@ -92,14 +94,29 @@ async fn reconcile(object: Arc<LrgsCluster>, data: Arc<Data>) -> Result<Action, 
     } 
     let lrgs_config = lrgs_config.ok().unwrap();
     let lrgs_config_secret = lrgs_config.secret;
+
+    let lrgs_managed_users  = match create_managed_users(client.clone(), &object, &oref).await {
+        Ok(lmu) => lmu,
+        Err(e) => {
+            println!("Unable to process managed users. {:?}", e);
+            Vec::new()
+        },
+    };
+
     let lrgs_service = create_service(client.clone(), &object, &oref);
     let lrgs_statefulset = create_statefulset(&object, lrgs_config.hash.clone());
+
+
     let serverside = PatchParams::apply("mycontroller");
     secrets_api.patch(&lrgs_config_secret.name_any(),&serverside, &Patch::Apply(lrgs_config_secret)).await?;
     config_map_api.patch(&lrgs_config_map.name_any(), &serverside, &Patch::Apply(lrgs_config_map)).await?;
     stateful_api.patch(&lrgs_statefulset.name_any(), &serverside, &Patch::Apply(lrgs_statefulset)).await?;
     for svc in lrgs_service {
         service_api.patch(&svc.name_any(), &serverside, &Patch::Apply(svc)).await?;
+    }
+
+    for user in lrgs_managed_users {
+        secrets_api.patch(&user.name_any(), &serverside, &Patch::Apply(user)).await?;
     }
     
     Ok(Action::requeue(Duration::from_secs(3600 / 2)))

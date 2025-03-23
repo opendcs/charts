@@ -4,6 +4,7 @@ export PATH=/opt/opendcs/bin:$PATH
 
 mkdir $LRGSHOME/netlist
 
+mv /config/.lrgs.passwd $LRGSHOME/.lrgs.passwd
 for user in `cat $LRGSHOME/.lrgs.passwd | cut -d : -f 1 -s`
 do
     mkdir -p $LRGSHOME/users/$user

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use hickory_resolver::config;
-use k8s_openapi::{api::{apps::v1::{StatefulSet, StatefulSetSpec}, core::v1::{ConfigMapVolumeSource, Container, ContainerPort, PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimTemplate, PodSpec, PodTemplateSpec, SecretVolumeSource, Volume, VolumeMount, VolumeResourceRequirements}}, apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::{LabelSelector, OwnerReference}}};
+use k8s_openapi::{api::{apps::v1::{StatefulSet, StatefulSetSpec}, core::v1::{ConfigMapVolumeSource, Container, ContainerPort, EnvVar, PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimTemplate, PodSpec, PodTemplateSpec, SecretVolumeSource, Volume, VolumeMount, VolumeResourceRequirements}}, apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::{LabelSelector, OwnerReference}}};
 use kube::{api::ObjectMeta, Resource};
 
 use crate::api::{constants::LRGS_GROUP, v1::lrgs::LrgsCluster};
@@ -73,9 +73,20 @@ fn pod_spec_template(_lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, label
                             ContainerPort {
                                 container_port: 16003,
                                 name: Some("dds".to_string()),
+                                protocol: Some("TCP".to_string()),
                                 ..Default::default()
                             }
                         ]),
+                        env: None, /* Some(
+                            vec![
+                                EnvVar {
+                                    name: "LRGSHOME".to_string(),
+                                    value: Some("/lrgs_home2".to_string()),
+                                    ..Default::default()
+                                }
+                            ]                            
+                        )
+                        ,*/
                         volume_mounts: Some(vec![
                             VolumeMount {
                                 name: "archive".to_string(),
@@ -89,7 +100,7 @@ fn pod_spec_template(_lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, label
                             },
                             VolumeMount {
                                 name: "lrgs-config".to_string(),
-                                mount_path: "/lrgs_home2".to_string(),
+                                mount_path: "/config".to_string(),
                                 ..Default::default()
                             }
 
