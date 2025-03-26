@@ -12,4 +12,4 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 FROM scratch
 
 USER 1000:1000
-COPY --from=builder /usr/local/cargo/bin/controller ./
+COPY --from=builder /usr/local/cargo/bin/lrgs ./
