@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use k8s_openapi::{api::core::v1::{Service, ServicePort, ServiceSpec}, apimachinery::pkg::{apis::meta::v1::OwnerReference, util::intstr::IntOrString}};
-use kube::{api::ObjectMeta, runtime::reflector::Lookup, Client};
+use kube::{api::ObjectMeta, runtime::reflector::Lookup, Client, ResourceExt};
 
 use crate::api::v1::lrgs::LrgsCluster;
 
@@ -10,10 +10,12 @@ use crate::api::v1::lrgs::LrgsCluster;
 
 pub fn create_service(client: Client, lrgs_cluster: &LrgsCluster, owner_ref: &OwnerReference) -> Vec<Service> {
     let cluster_name = lrgs_cluster.name().unwrap();
+    let ns: Option<String> = lrgs_cluster.metadata.namespace.clone();
     vec![
         Service {
             metadata: ObjectMeta {
                 name: Some(format!("{}-lrgs-service", &cluster_name)),
+                namespace: ns.clone(),
                 owner_references: Some(vec![owner_ref.clone()]),
                 ..Default::default()
             },
@@ -41,6 +43,7 @@ pub fn create_service(client: Client, lrgs_cluster: &LrgsCluster, owner_ref: &Ow
         Service {
             metadata: ObjectMeta {
                 name: Some(format!("{}-lrgs-service-headless", &cluster_name)),
+                namespace: ns.clone(),
                 owner_references: Some(vec![owner_ref.clone()]),
                 ..Default::default()
             },

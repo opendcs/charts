@@ -23,11 +23,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //let args = Cli::parse();
     // Infer the runtime environment and try to create a Kubernetes Client
     let client = Client::try_default().await?;
-    let secrets: Api<Secret> = Api::default_namespaced(client.clone());
-    let services: Api<Service> = Api::default_namespaced(client.clone());
-    let lrgs_cluster: Api<LrgsCluster> = Api::default_namespaced(client.clone());
-    let dds_connections: Api<DdsConnection> = Api::default_namespaced(client.clone());
-    let stateful_set: Api<StatefulSet> = Api::default_namespaced(client.clone());
+    let secrets: Api<Secret> = Api::all(client.clone());
+    let services: Api<Service> = Api::all(client.clone());
+    let lrgs_cluster: Api<LrgsCluster> = Api::all(client.clone());
+    let dds_connections: Api<DdsConnection> = Api::all(client.clone());
+    let stateful_set: Api<StatefulSet> = Api::all(client.clone());
     let user_watch_config = watcher::Config::default().fields("type=LrgsCluster.opendcs.org/ddsuser");
 
 

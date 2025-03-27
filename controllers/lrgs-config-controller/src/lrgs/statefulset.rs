@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use hickory_resolver::config;
 use k8s_openapi::{api::{apps::v1::{StatefulSet, StatefulSetSpec}, core::v1::{ConfigMapVolumeSource, Container, ContainerPort, EnvVar, PersistentVolumeClaim, PersistentVolumeClaimSpec, PersistentVolumeClaimTemplate, PodSpec, PodTemplateSpec, SecretVolumeSource, Volume, VolumeMount, VolumeResourceRequirements}}, apimachinery::pkg::{api::resource::Quantity, apis::meta::v1::{LabelSelector, OwnerReference}}};
-use kube::{api::ObjectMeta, Resource};
+use kube::{api::ObjectMeta, Resource, ResourceExt};
 
 use crate::api::{constants::LRGS_GROUP, v1::lrgs::LrgsCluster};
 
@@ -41,6 +41,7 @@ pub fn create_statefulset(lrgs_spec: &LrgsCluster, config_hash: String) -> State
     StatefulSet {
         metadata: ObjectMeta {
             name: Some(format!("{}-lrgs",lrgs_spec.metadata.name.clone().unwrap())),
+            namespace: lrgs_spec.namespace().clone(),
             owner_references: Some(vec![owner_ref]),
             labels: Some(labels.clone()),
             annotations: Some(annotations.clone()),
@@ -137,6 +138,7 @@ fn claim_templates(lrgs_spec: &LrgsCluster, owner_ref: &OwnerReference, _labels:
         PersistentVolumeClaim {
             metadata: ObjectMeta {
                 name: Some("archive".to_string()),
+                namespace: lrgs_spec.namespace().clone(),
                 owner_references: Some(vec![owner_ref.clone()]),
                 ..Default::default()
             },
