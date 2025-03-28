@@ -13,3 +13,4 @@ FROM scratch
 
 USER 1000:1000
 COPY --from=builder /usr/local/cargo/bin/lrgs ./
+CMD [ "/lrgs" ]
