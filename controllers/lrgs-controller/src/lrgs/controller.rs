@@ -1,17 +1,20 @@
 use std::{sync::Arc, time::Duration};
 
+use chrono::Utc;
 use futures::StreamExt;
 use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::{ConfigMap, Secret, Service}};
-use kube::{api::{Patch, PatchParams}, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Error, Resource, ResourceExt};
+use kube::{api::{Patch, PatchParams}, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Client, Error, Resource, ResourceExt};
+use tracing::{field, info, instrument, warn, Span};
 
-use crate::{api::v1::{dds_recv::DdsConnection, lrgs::LrgsCluster}, lrgs::{config::{create_lrgs_config, create_managed_users}, configmap::created_script_config_map, service::create_service, statefulset::create_statefulset}};
+use crate::{api::v1::{dds_recv::DdsConnection, lrgs::LrgsCluster}, lrgs::{config::{create_lrgs_config, create_managed_users}, configmap::created_script_config_map, service::create_service, statefulset::create_statefulset, telemetry}};
 
-use super::state::AppData;
+use super::state::{Context, State};
 
 
 
-pub async fn run(state: Arc<AppData>) {
-    let client = &state.client;
+pub async fn run(state: State) {
+    let client = Client::try_default().await.expect("failed to create kube Client");
+    
     let secrets: Api<Secret> = Api::all(client.clone());
     let services: Api<Service> = Api::all(client.clone());
     let lrgs_cluster: Api<LrgsCluster> = Api::all(client.clone());
@@ -47,19 +50,25 @@ pub async fn run(state: Arc<AppData>) {
         .watches(secrets.clone(), user_watch_config, user_mapper)
         .watches(dds_connections.clone(), watcher::Config::default(), dds_mapper)
         .shutdown_on_signal()
-        .run(reconcile, error_policy , state.clone())
+        .run(reconcile, error_policy , state.to_context(client).await)
         .filter_map(|x| async move { std::result::Result::ok(x)})
         .for_each(|_| futures::future::ready(()))
         .await;
 }
 
-
-async fn reconcile(object: Arc<LrgsCluster>, data: Arc<AppData>) -> Result<Action, Error>  {
-    println!("Processing {:?}",object.spec);
+#[instrument(skip(object, ctx), fields(trace_id))]
+async fn reconcile(object: Arc<LrgsCluster>, ctx: Arc<Context>) -> Result<Action, Error>  {
+    let trace_id = telemetry::get_trace_id();
+    if trace_id != opentelemetry::trace::TraceId::INVALID {
+        Span::current().record("trace_id", field::display(&trace_id));
+    }
+    let _timer = ctx.metrics.reconcile.count_and_measure(&trace_id);
+    ctx.diagnostics.write().await.last_event = Utc::now();
     let oref = object.controller_owner_ref(&()).unwrap();
-    let client = &data.client;
+    let client = &ctx.client;
     let name = object.metadata.name.clone().unwrap();
     let ns = object.metadata.namespace.clone().unwrap_or("default".to_string());
+    info!("Processing \"{}\" in {}", object.name_any(), ns);
     let stateful_api: Api<StatefulSet> = Api::namespaced(client.clone(), &ns);
     let config_map_api: Api<ConfigMap> = Api::namespaced(client.clone(), &ns);
     let secrets_api: Api<Secret> = Api::namespaced(client.clone(), &ns);
@@ -104,7 +113,8 @@ async fn reconcile(object: Arc<LrgsCluster>, data: Arc<AppData>) -> Result<Actio
 
 
 
-fn error_policy(_object: Arc<LrgsCluster>, err: &Error, _ctx: Arc<AppData>) -> Action {
-    println!("Error {}", err);
-    Action::requeue(Duration::from_secs(5))
+fn error_policy(object: Arc<LrgsCluster>, err: &Error, ctx: Arc<Context>) -> Action {
+    warn!("reconcile failed: {:?}", err);
+    ctx.metrics.reconcile.set_failure(&object, err);
+    Action::requeue(Duration::from_secs(5 * 60))
 }

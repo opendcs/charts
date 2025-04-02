@@ -1,1 +1,2 @@
 check logs to see if running
+{{ .Values.image }}
