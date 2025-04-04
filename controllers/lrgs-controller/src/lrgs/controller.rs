@@ -4,9 +4,10 @@ use chrono::Utc;
 use futures::StreamExt;
 use k8s_openapi::api::{apps::v1::StatefulSet, core::v1::{ConfigMap, Secret, Service}};
 use kube::{api::{Patch, PatchParams}, runtime::{controller::Action, reflector::ObjectRef, watcher, Controller}, Api, Client, Error, Resource, ResourceExt};
-use tracing::{field, info, instrument, warn, Span};
+use serde_json::json;
+use tracing::{error, field, info, instrument, warn, Span};
 
-use crate::{api::v1::{dds_recv::DdsConnection, lrgs::LrgsCluster}, lrgs::{config::{create_lrgs_config, create_managed_users}, configmap::created_script_config_map, service::create_service, statefulset::create_statefulset, telemetry}};
+use crate::{api::v1::{dds_recv::DdsConnection, lrgs::{LrgsCluster, LrgsClusterStatus}}, lrgs::{config::{create_lrgs_config, create_managed_users}, configmap::created_script_config_map, service::create_service, statefulset::create_statefulset, telemetry}};
 
 use super::state::{Context, State};
 
@@ -16,6 +17,7 @@ pub async fn run(state: State) {
     let client = Client::try_default().await.expect("failed to create kube Client");
     
     let secrets: Api<Secret> = Api::all(client.clone());
+    let cm: Api<ConfigMap> = Api::all(client.clone());
     let services: Api<Service> = Api::all(client.clone());
     let lrgs_cluster: Api<LrgsCluster> = Api::all(client.clone());
     let dds_connections: Api<DdsConnection> = Api::all(client.clone());
@@ -47,6 +49,7 @@ pub async fn run(state: State) {
         .owns(stateful_set, watcher::Config::default())
         .owns(secrets.clone(), watcher::Config::default())
         .owns(services.clone(), watcher::Config::default())
+        .owns(cm, watcher::Config::default())
         .watches(secrets.clone(), user_watch_config, user_mapper)
         .watches(dds_connections.clone(), watcher::Config::default(), dds_mapper)
         .shutdown_on_signal()
@@ -69,16 +72,17 @@ async fn reconcile(object: Arc<LrgsCluster>, ctx: Arc<Context>) -> Result<Action
     let name = object.metadata.name.clone().unwrap();
     let ns = object.metadata.namespace.clone().unwrap_or("default".to_string());
     info!("Processing \"{}\" in {}", object.name_any(), ns);
+    let lrgs_api: Api<LrgsCluster> = Api::namespaced(client.clone(), &ns);
     let stateful_api: Api<StatefulSet> = Api::namespaced(client.clone(), &ns);
     let config_map_api: Api<ConfigMap> = Api::namespaced(client.clone(), &ns);
     let secrets_api: Api<Secret> = Api::namespaced(client.clone(), &ns);
     let service_api: Api<Service> = Api::namespaced(client.clone(), &ns);
 
-    let lrgs_config_map = created_script_config_map(ns.clone(), &oref);
+    let (lrgs_config_map, script_hash) = created_script_config_map(ns.clone(), &oref);
     let lrgs_config = create_lrgs_config(client.clone(), &object, &oref).await;
     if lrgs_config.is_err() {
         let error = lrgs_config.err().unwrap();
-        println!("Unable to build Configuration for Lrgs Cluster {}", error);
+        error!("Unable to build Configuration for Lrgs Cluster {}", error);
         //return Err(kube::Error::ReadEvents(io::Error::new(ErrorKind::Other, error.to_string())))  ;
         return Ok(Action::requeue(Duration::from_secs(3600)));
     } 
@@ -94,9 +98,9 @@ async fn reconcile(object: Arc<LrgsCluster>, ctx: Arc<Context>) -> Result<Action
     };
 
     let lrgs_service = create_service(client.clone(), &object, &oref);
-    let lrgs_statefulset = create_statefulset(&object, lrgs_config.hash.clone());
-
-    let serverside = PatchParams::apply("mycontroller");
+    let lrgs_statefulset = create_statefulset(&object, lrgs_config.hash.clone(), script_hash.clone());
+    let patch_name = "lrgs-controller";
+    let serverside = PatchParams::apply(patch_name);
     secrets_api.patch(&lrgs_config_secret.name_any(),&serverside, &Patch::Apply(lrgs_config_secret)).await?;
     config_map_api.patch(&lrgs_config_map.name_any(), &serverside, &Patch::Apply(lrgs_config_map)).await?;
     stateful_api.patch(&lrgs_statefulset.name_any(), &serverside, &Patch::Apply(lrgs_statefulset)).await?;
@@ -108,6 +112,22 @@ async fn reconcile(object: Arc<LrgsCluster>, ctx: Arc<Context>) -> Result<Action
         secrets_api.patch(&user.name_any(), &serverside, &Patch::Apply(user)).await?;
     }
     
+
+    if object.status.as_ref().is_none_or(|lrgs| { lrgs.checksum != lrgs_config.hash }) {
+        // always overwrite status object with what we saw
+        let new_status = Patch::Apply(json!({
+            "apiVersion": "lrgs.opendcs.org/v1",
+            "kind": "LrgsCluster",
+            "status": LrgsClusterStatus { 
+                checksum: lrgs_config.hash.clone(),
+                last_updated: Some(Utc::now()) }
+        }));
+        let ps = PatchParams::apply(&patch_name).force();
+        let _o = lrgs_api
+                .patch_status(&name, &ps, &new_status)
+                .await?;
+    }
+
     Ok(Action::requeue(Duration::from_secs(3600 / 2)))
 }
 
