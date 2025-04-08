@@ -37,8 +37,14 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}          
           command: ["/lrgs"]
+          ports:
+            - containerPort: 8080
+              name: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: RUST_LOG
+              value: {{ .Values.log_level }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
