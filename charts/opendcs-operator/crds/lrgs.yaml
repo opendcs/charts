@@ -1,0 +1,154 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: ddsconnections.lrgs.opendcs.org
+spec:
+  group: lrgs.opendcs.org
+  names:
+    categories: []
+    kind: DdsConnection
+    plural: ddsconnections
+    shortNames: []
+    singular: ddsconnection
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for DdsConnectionSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              enabled:
+                nullable: true
+                type: boolean
+              hostname:
+                type: string
+              port:
+                default: 16003
+                format: int32
+                type: integer
+              username:
+                type: string
+            required:
+            - hostname
+            - username
+            type: object
+        required:
+        - spec
+        title: DdsConnection
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: drgsconnections.lrgs.opendcs.org
+spec:
+  group: lrgs.opendcs.org
+  names:
+    categories: []
+    kind: DrgsConnection
+    plural: drgsconnections
+    shortNames: []
+    singular: drgsconnection
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for DrgsConnectionSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              enabled:
+                nullable: true
+                type: boolean
+              eventEnabled:
+                nullable: true
+                type: boolean
+              eventPort:
+                default: 17011
+                format: uint16
+                minimum: 0.0
+                type: integer
+              hostname:
+                type: string
+              messagePort:
+                default: 17010
+                format: uint16
+                minimum: 0.0
+                type: integer
+              startPattern:
+                type: string
+            required:
+            - hostname
+            - startPattern
+            type: object
+        required:
+        - spec
+        title: DrgsConnection
+        type: object
+    served: true
+    storage: true
+    subresources: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: lrgsclusters.lrgs.opendcs.org
+spec:
+  group: lrgs.opendcs.org
+  names:
+    categories: []
+    kind: LrgsCluster
+    plural: lrgsclusters
+    shortNames: []
+    singular: lrgscluster
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for LrgsClusterSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              replicas:
+                format: int32
+                type: integer
+              storageClass:
+                type: string
+              storageSize:
+                type: string
+            required:
+            - replicas
+            - storageClass
+            - storageSize
+            type: object
+          status:
+            nullable: true
+            properties:
+              checksum:
+                type: string
+              last_updated:
+                format: date-time
+                nullable: true
+                type: string
+            required:
+            - checksum
+            type: object
+        required:
+        - spec
+        title: LrgsCluster
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
