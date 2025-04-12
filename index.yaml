@@ -18,6 +18,16 @@ entries:
     version: 0.0.6
   opendcs-operator:
   - apiVersion: v2
+    appVersion: 0.0.8
+    created: "2025-04-12T23:02:19.17292984Z"
+    description: An operator for OpenDCS applications
+    digest: 057b627a534da42dc50b00a68b8dc90a94060eb832c908b93c28d6bc6c101d4d
+    name: opendcs-operator
+    type: application
+    urls:
+    - https://github.com/opendcs/charts/releases/download/opendcs-operator-0.0.5/opendcs-operator-0.0.5.tgz
+    version: 0.0.5
+  - apiVersion: v2
     appVersion: 0.0.7
     created: "2025-04-11T20:06:11.182233367Z"
     description: An operator for OpenDCS applications
@@ -57,4 +67,4 @@ entries:
     urls:
     - https://github.com/opendcs/charts/releases/download/opendcs-operator-0.0.1/opendcs-operator-0.0.1.tgz
     version: 0.0.1
-generated: "2025-04-11T20:06:11.182249597Z"
+generated: "2025-04-12T23:02:19.172950529Z"
