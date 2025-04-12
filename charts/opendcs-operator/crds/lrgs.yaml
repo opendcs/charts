@@ -120,6 +120,10 @@ spec:
         properties:
           spec:
             properties:
+              archiveLengthDays:
+                format: int32
+                nullable: true
+                type: integer
               replicas:
                 format: int32
                 type: integer
