@@ -30,6 +30,13 @@ spec:
                 default: 16003
                 format: int32
                 type: integer
+              tlsMode:
+                enum:
+                - NoTls
+                - StartTls
+                - Tls
+                nullable: true
+                type: string
               username:
                 type: string
             required:
