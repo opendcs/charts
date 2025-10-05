@@ -1,0 +1,72 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: opendcsdatabases.tsdb.opendcs.org
+spec:
+  group: tsdb.opendcs.org
+  names:
+    categories: []
+    kind: OpenDcsDatabase
+    plural: opendcsdatabases
+    shortNames: []
+    singular: opendcsdatabase
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns: []
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: Auto-generated derived type for OpenDcsDatabaseSpec via `CustomResource`
+        properties:
+          spec:
+            properties:
+              databaseSecret:
+                description: 'Secret for admin user of the database. Must contain the following keys: jdbcUrl, username, password'
+                type: string
+              placeholders:
+                additionalProperties:
+                  type: string
+                description: Flyway placeholders for the given database. Cannot be changed after initial setup
+                type: object
+                x-kubernetes-validations:
+                - message: is immutable
+                  rule: self == oldSelf
+              schemaVersion:
+                description: Migration image to use. Migration image tags will track the schema version they are as well if the opendcs release version
+                type: string
+            required:
+            - databaseSecret
+            - placeholders
+            - schemaVersion
+            type: object
+          status:
+            nullable: true
+            properties:
+              applied_schema_version:
+                description: Applied Schema version as derived from the installed schema
+                nullable: true
+                type: string
+              last_updated:
+                format: date-time
+                nullable: true
+                type: string
+              state:
+                description: Current migration activity
+                enum:
+                - Fresh
+                - PreparingToMigrate
+                - Migrating
+                - Ready
+                - Failed
+                nullable: true
+                type: string
+            type: object
+        required:
+        - spec
+        title: OpenDcsDatabase
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

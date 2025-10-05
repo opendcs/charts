@@ -87,3 +87,18 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+
+lrgs:
+  image:
+    repository: ghcr.io/opendcs/k8s/lrgs-controller
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+
+schema:
+  image:
+    repository: ghcr.io/opendcs/k8s/schema-controller
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""

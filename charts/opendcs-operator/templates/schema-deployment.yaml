@@ -1,16 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "opendcs-operator.fullname" . }}
+  name: {{ include "opendcs-operator.fullname" . }}-schema
   labels:
     {{- include "opendcs-operator.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
   selector:
     matchLabels:
       {{- include "opendcs-operator.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/name: {{ include "opendcs-operator.name" . }}-schema
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -22,6 +21,7 @@ spec:
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        app.kubernetes.io/name: {{ include "opendcs-operator.name" . }}-schema
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -34,9 +34,9 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}          
-          command: ["/lrgs"]
+          image: "{{ .Values.schema.image.repository }}:{{ .Values.schema.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.schema.image.pullPolicy | default .Values.image.pullPolicy }}
+          command: ["/schema"]
           ports:
             - containerPort: 8080
               name: http
